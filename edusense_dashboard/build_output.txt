@@ -1,0 +1,52 @@
+﻿Launching lib\main.dart on Windows in debug mode...
+Building Windows application...                                 
+flutter : lib/theme/app_th
+eme.dart(44,24): error 
+GC2F972A8: The argument 
+type 'CardTheme' can't be 
+assigned to the parameter 
+type 'CardThemeData?'. 
+[D:\Project from github\Ed
+uSense\edusense_dashboard\
+build\windows\x64\flutter\
+flutter_assemble.vcxproj]
+At line:1 char:1
++ flutter run -d windows 
+--no-pub 2>&1 | Out-File 
+-FilePath "build_outp ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (l  
+  ib/theme/app_t...semb   
+ le.vcxproj]:String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+C:\Program 
+Files\Microsoft Visual Stu
+dio\18\Insiders\MSBuild\Mi
+crosoft\VC\v180\Microsoft.
+CppCommon.targets(254,5): 
+error MSB8066: Custom 
+build for 'D:\Project 
+from github\EduSense\eduse
+nse_dashboard\build\window
+s\x64\CMakeFiles\7a6779bf8
+abaebad90f1f1319bebdf9a\fl
+utter_windows.dll.rule;D:\
+Project from github\EduSen
+se\edusense_dashboard\buil
+d\windows\x64\CMakeFiles\4
+53dc940178e3595e18caad47ac
+8289e\flutter_assemble.rul
+e' exited with code 1. 
+[D:\Project from github\Ed
+uSense\edusense_dashboard\
+build\windows\x64\flutter\
+flutter_assemble.vcxproj]
+Building Windows application...                                    11.0s
+Error: Build process 
+failed.
