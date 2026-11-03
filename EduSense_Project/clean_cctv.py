@@ -1,10 +1,12 @@
 import os
 import shutil
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Folder sumber (yang berisi banyak sub-folder)
-source_dir = 'dataset_cctv_mentah/'
+source_dir = os.path.join(BASE_DIR, 'dataset_cctv_mentah')
 # Folder tujuan (hasil akhir akan ditaruh di sini tanpa sub-folder)
-output_dir = 'dataset_cctv_tersaring/'
+output_dir = os.path.join(BASE_DIR, 'dataset_cctv_tersaring')
 
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)

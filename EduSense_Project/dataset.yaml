@@ -1,0 +1,15 @@
+# Lokasi dataset di dalam Google Colab nantinya
+path: /content/dataset_yolo_tidur
+
+# Jalur relatif ke folder gambar
+train: images/train
+val: images/val
+test: images/test
+
+# Jumlah kelas
+nc: 2
+
+# Nama kelas sesuai dengan urutan index saat Anda melabeli di LabelImg (0 dan 1)
+names:
+  0: wajah
+  1: head_down
