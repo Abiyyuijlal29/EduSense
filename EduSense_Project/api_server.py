@@ -180,3 +180,138 @@ async def deteksi_siswa_raw(request: Request):
         raise HTTPException(status_code=400, detail="Gagal membaca biner gambar.")
 
     return proses_deteksi(image, "raw_binary_upload.jpg")
+
+
+# ----------------- KONTROL IOT & PRESENSI KELAS -----------------
+class LoginRequest(BaseModel):
+    username_atau_email: str
+    password: str
+
+class IoTControlRequest(BaseModel):
+    mode_kipas: str  # 'Auto' atau 'Manual'
+    kecepatan_kipas: int  # 0, 1, 2, 3
+
+# State Simulasi IoT
+iot_state = {
+    "suhu": 28.8,
+    "kelembaban": 64.0,
+    "mode_kipas": "Auto",
+    "kecepatan_kipas": 2,
+    "status_ruangan": "Normal Nyaman"
+}
+
+# Database Presensi Mahasiswa Terdaftar
+data_presensi_mahasiswa = [
+    {
+        "nim": "E41241919",
+        "nama": "Abiyyu Ijlal Rasib Novamatin",
+        "jam_kehadiran": "07:35 WIB",
+        "status": "Hadir",
+        "aktivitas_terakhir": "Memperhatikan"
+    },
+    {
+        "nim": "E41241859",
+        "nama": "Adelia Hanifa Saharani",
+        "jam_kehadiran": "07:42 WIB",
+        "status": "Hadir",
+        "aktivitas_terakhir": "Memperhatikan"
+    },
+    {
+        "nim": "E41242025",
+        "nama": "Muhammad Rahamadhani",
+        "jam_kehadiran": "07:48 WIB",
+        "status": "Hadir",
+        "aktivitas_terakhir": "Tertidur / Menunduk"
+    },
+    {
+        "nim": "E41242065",
+        "nama": "Muhammad Akbar Ellia Menang",
+        "jam_kehadiran": "07:50 WIB",
+        "status": "Hadir",
+        "aktivitas_terakhir": "Memperhatikan"
+    }
+]
+
+@app.post("/api/auth/login")
+def login_dosen(req: LoginRequest):
+    """Endpoint Login untuk Dosen."""
+    user = req.username_atau_email.strip()
+    pwd = req.password.strip()
+
+    # Kredensial Default Dosen
+    if (user in ["dosen@polije.ac.id", "dosen", "198501012010121001"]) and (pwd in ["dosen123", "admin123"]):
+        return {
+            "status": "success",
+            "pesan": "Login Berhasil",
+            "data_dosen": {
+                "nip": "198501012010121001",
+                "nama": "Dr. Ir. Dosen Pengampu, M.Kom.",
+                "email": "dosen@polije.ac.id",
+                "program_studi": "Teknik Informatika",
+                "mata_kuliah": "Vision AI dan IoT Smart Classroom",
+                "kelas_aktif": "TI-2F (Ruang Lab 3)"
+            }
+        }
+    elif pwd in ["dosen123", "admin123"]:
+        return {
+            "status": "success",
+            "pesan": "Login Berhasil",
+            "data_dosen": {
+                "nip": "198501012010121001",
+                "nama": f"Dosen Pengampu ({user})",
+                "email": f"{user}@polije.ac.id",
+                "program_studi": "Teknik Informatika",
+                "mata_kuliah": "Vision AI dan IoT Smart Classroom",
+                "kelas_aktif": "TI-2F (Ruang Lab 3)"
+            }
+        }
+    else:
+        raise HTTPException(status_code=401, detail="NIP/Email atau password salah! (Email: dosen@polije.ac.id / Pass: dosen123)")
+
+@app.get("/api/presensi")
+def get_presensi():
+    """Mengambil daftar presensi mahasiswa hari ini."""
+    hadir = sum(1 for m in data_presensi_mahasiswa if m["status"] == "Hadir")
+    return {
+        "status": "success",
+        "total_mahasiswa": len(data_presensi_mahasiswa),
+        "jumlah_hadir": hadir,
+        "jumlah_absen": len(data_presensi_mahasiswa) - hadir,
+        "daftar_mahasiswa": data_presensi_mahasiswa
+    }
+
+@app.get("/api/iot/status")
+def get_iot_status():
+    """Membaca data suhu, kelembaban, dan status kipas ESP32."""
+    return {
+        "status": "success",
+        "iot": iot_state
+    }
+
+@app.post("/api/iot/kontrol-kipas")
+def kontrol_kipas(req: IoTControlRequest):
+    """Mengatur mode dan kecepatan kipas dari aplikasi mobile."""
+    if req.mode_kipas not in ["Auto", "Manual"]:
+        raise HTTPException(status_code=400, detail="Mode kipas harus 'Auto' atau 'Manual'")
+    if req.kecepatan_kipas not in [0, 1, 2, 3]:
+        raise HTTPException(status_code=400, detail="Kecepatan kipas harus bernilai 0, 1, 2, atau 3")
+
+    iot_state["mode_kipas"] = req.mode_kipas
+    iot_state["kecepatan_kipas"] = req.kecepatan_kipas
+    
+    if req.mode_kipas == "Auto":
+        suhu = iot_state["suhu"]
+        if suhu < 26.0:
+            iot_state["kecepatan_kipas"] = 0
+        elif suhu <= 28.5:
+            iot_state["kecepatan_kipas"] = 1
+        elif suhu <= 31.0:
+            iot_state["kecepatan_kipas"] = 2
+        else:
+            iot_state["kecepatan_kipas"] = 3
+
+    return {
+        "status": "success",
+        "pesan": f"Kipas diubah ke mode {req.mode_kipas} (Kecepatan: {iot_state['kecepatan_kipas']})",
+        "iot": iot_state
+    }
