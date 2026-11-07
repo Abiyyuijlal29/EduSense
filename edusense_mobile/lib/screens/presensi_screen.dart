@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/mahasiswa.dart';
 import '../services/api_service.dart';
+import '../services/firebase_service.dart';
 import 'registrasi_wajah_screen.dart';
 
 class PresensiScreen extends StatefulWidget {
@@ -15,18 +17,47 @@ class _PresensiScreenState extends State<PresensiScreen> {
   List<MahasiswaPresensi> _filteredStudents = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
+  StreamSubscription<List<MahasiswaPresensi>>? _presensiSub;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _searchController.addListener(_onSearchChanged);
+    // [FIREBASE] real-time: data presensi baru di Firebase langsung muncul
+    try {
+      _presensiSub = FirebaseService().watchPresensi().listen(
+            _onPresensiStream,
+            onError: (Object e) {},
+          );
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _presensiSub?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  // [FIREBASE] dipanggil setiap data presensi di Firebase berubah
+  Future<void> _onPresensiStream(List<MahasiswaPresensi> data) async {
+    var list = data;
+    if (list.isEmpty) list = await ApiService().getPresensi();
+    if (!mounted) return;
+    setState(() {
+      _allStudents = list;
+      _filteredStudents = _filterList(list);
+      _isLoading = false;
+    });
+  }
+
+  List<MahasiswaPresensi> _filterList(List<MahasiswaPresensi> source) {
+    final query = _searchController.text.toLowerCase();
+    return source.where((m) {
+      return m.nama.toLowerCase().contains(query) ||
+          m.nim.toLowerCase().contains(query);
+    }).toList();
   }
 
   Future<void> _loadData() async {
@@ -42,12 +73,8 @@ class _PresensiScreenState extends State<PresensiScreen> {
   }
 
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase();
     setState(() {
-      _filteredStudents = _allStudents.where((m) {
-        return m.nama.toLowerCase().contains(query) ||
-            m.nim.toLowerCase().contains(query);
-      }).toList();
+      _filteredStudents = _filterList(_allStudents);
     });
   }
 

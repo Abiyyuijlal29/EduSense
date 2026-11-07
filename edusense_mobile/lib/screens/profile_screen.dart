@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_dosen.dart';
 import '../services/api_service.dart';
+import '../services/firebase_service.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -225,6 +226,8 @@ class ProfileScreen extends StatelessWidget {
               ),
               onPressed: () {
                 ApiService().currentUser = null;
+                // [FIREBASE] keluar dari akun Firebase juga
+                FirebaseService().signOut();
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginScreen()),

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/iot_state.dart';
 import '../services/api_service.dart';
+import '../services/firebase_service.dart';
 
 class IoTScreen extends StatefulWidget {
   const IoTScreen({super.key});
@@ -13,11 +15,31 @@ class _IoTScreenState extends State<IoTScreen> {
   IoTState? _iotState;
   bool _isLoading = true;
   bool _isUpdating = false;
+  StreamSubscription<IoTState?>? _iotSub;
 
   @override
   void initState() {
     super.initState();
     _fetchIoT();
+    // [FIREBASE] real-time: suhu, kelembaban, dan kipas berubah otomatis
+    try {
+      _iotSub = FirebaseService().watchIoT().listen(
+        (data) {
+          if (!mounted || data == null) return;
+          setState(() {
+            _iotState = data;
+            _isLoading = false;
+          });
+        },
+        onError: (Object e) {},
+      );
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _iotSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchIoT() async {

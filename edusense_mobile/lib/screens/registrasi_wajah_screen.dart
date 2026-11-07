@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/firebase_service.dart';
 
 class RegistrasiWajahScreen extends StatefulWidget {
   const RegistrasiWajahScreen({super.key});
@@ -49,10 +50,22 @@ class _RegistrasiWajahScreenState extends State<RegistrasiWajahScreen> {
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
+    // [FIREBASE] simpan data registrasi ke node mahasiswa dan registrasi_wajah
+    final tersimpan = await FirebaseService().registrasiMahasiswa(
+      nim: nim,
+      nama: nama,
+      jumlahSampel: 15,
+    );
+    if (!mounted) return;
+
+    final pesanSukses =
+        '✅ Sukses! 15 sampel wajah untuk $nama ($nim) berhasil disimpan ke folder dataset_absensi.';
+
     setState(() {
       _isCapturing = false;
-      _statusMessage =
-          '✅ Sukses! 15 sampel wajah untuk $nama ($nim) berhasil disimpan ke folder dataset_absensi.';
+      _statusMessage = tersimpan
+          ? pesanSukses
+          : '$pesanSukses\n⚠️ Data belum tersimpan ke Firebase (periksa login, koneksi, atau format NIM).';
     });
 
     showDialog(

@@ -72,6 +72,15 @@ class FirebaseService {
     }
   }
 
+  // Keluar dari akun Firebase (dipanggil saat tombol logout ditekan)
+  Future<void> signOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      debugPrint('Firebase signOut gagal: $e');
+    }
+  }
+
   // Profil dosen dari node "dosen" (dicari berdasarkan email)
   Future<UserDosen?> getDosen(String email) async {
     try {
@@ -200,6 +209,41 @@ class FirebaseService {
     } catch (e) {
       debugPrint('Firebase updateKipas gagal: $e');
       return null;
+    }
+  }
+
+  // Simpan hasil registrasi mahasiswa ke node mahasiswa dan registrasi_wajah
+  Future<bool> registrasiMahasiswa({
+    required String nim,
+    required String nama,
+    required int jumlahSampel,
+  }) async {
+    try {
+      if (!_sudahLogin) return false;
+      // Key di Firebase tidak boleh mengandung . $ # [ ] /
+      if (nim.isEmpty || RegExp(r'[.$#\[\]/]').hasMatch(nim)) return false;
+      final waktu = DateTime.now().toUtc().toIso8601String();
+
+      await _db.ref('mahasiswa/$nim').set({
+        'nim': nim,
+        'nama': nama,
+        'samples_captured': jumlahSampel,
+        'terdaftar_pada': waktu,
+      }).timeout(_timeout);
+
+      await _db.ref('registrasi_wajah/$nim').set({
+        'nim': nim,
+        'nama': nama,
+        'jumlah_sampel': jumlahSampel,
+        'status_registrasi': 'Selesai',
+        'pesan':
+            '$jumlahSampel sampel wajah untuk $nama ($nim) berhasil disimpan ke folder dataset_absensi.',
+        'terdaftar_pada': waktu,
+      }).timeout(_timeout);
+      return true;
+    } catch (e) {
+      debugPrint('Firebase registrasiMahasiswa gagal: $e');
+      return false;
     }
   }
 }
