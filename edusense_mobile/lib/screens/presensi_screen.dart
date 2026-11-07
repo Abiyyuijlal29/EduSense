@@ -109,7 +109,7 @@ class _PresensiScreenState extends State<PresensiScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF1E3A8A).withOpacity(0.25),
+                            color: const Color(0xFF1E3A8A).withValues(alpha: 0.25),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -182,7 +182,7 @@ class _PresensiScreenState extends State<PresensiScreen> {
                                         : null,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.03),
+                                        color: Colors.black.withValues(alpha: 0.03),
                                         blurRadius: 8,
                                         offset: const Offset(0, 3),
                                       ),
@@ -292,7 +292,7 @@ class _PresensiScreenState extends State<PresensiScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 11,
           ),
         ),

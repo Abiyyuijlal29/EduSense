@@ -21,7 +21,9 @@ class _RegistrasiWajahScreenState extends State<RegistrasiWajahScreen> {
     if (nim.isEmpty || nama.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Harap lengkapi NIM dan Nama Mahasiswa terlebih dahulu!'),
+          content: Text(
+            'Harap lengkapi NIM dan Nama Mahasiswa terlebih dahulu!',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -102,7 +104,7 @@ class _RegistrasiWajahScreenState extends State<RegistrasiWajahScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -121,13 +123,13 @@ class _RegistrasiWajahScreenState extends State<RegistrasiWajahScreen> {
                           Icon(
                             Icons.camera_alt_outlined,
                             size: 44,
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withValues(alpha: 0.4),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'Kamera CCTV Ruang Kelas (RTSP Port 554)',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 12,
                             ),
                           ),
@@ -141,7 +143,9 @@ class _RegistrasiWajahScreenState extends State<RegistrasiWajahScreen> {
                     height: 150,
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: _isCapturing ? Colors.greenAccent : Colors.white70,
+                        color: _isCapturing
+                            ? Colors.greenAccent
+                            : Colors.white70,
                         width: 2,
                       ),
                       borderRadius: BorderRadius.circular(12),
@@ -192,7 +196,7 @@ class _RegistrasiWajahScreenState extends State<RegistrasiWajahScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -235,7 +239,10 @@ class _RegistrasiWajahScreenState extends State<RegistrasiWajahScreen> {
                 ),
                 child: Text(
                   _statusMessage!,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF1E3A8A)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF1E3A8A),
+                  ),
                 ),
               ),
 
@@ -246,7 +253,9 @@ class _RegistrasiWajahScreenState extends State<RegistrasiWajahScreen> {
                 backgroundColor: const Color(0xFF1E3A8A),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               icon: _isCapturing
                   ? const SizedBox(
