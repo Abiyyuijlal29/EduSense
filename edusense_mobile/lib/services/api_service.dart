@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/user_dosen.dart';
 import '../models/mahasiswa.dart';
 import '../models/iot_state.dart';
+import 'firebase_service.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -40,47 +41,70 @@ class ApiService {
   }
 
   // 2. Login Dosen
+  // Urutan: (1) Firebase Authentication + profil dari node "dosen" di Firebase,
+  //         (2) cadangan: server FastAPI (termasuk login memakai NIP).
   Future<UserDosen> login(String username, String password) async {
+    final input = username.trim();
+
+    // [FIREBASE] sumber utama: login memakai email yang diketik
+    if (input.contains('@')) {
+      final berhasil = await FirebaseService().signIn(input, password);
+      if (berhasil) {
+        final profil = await FirebaseService().getDosen(input);
+        if (profil != null) {
+          currentUser = profil;
+          return profil;
+        }
+        throw Exception(
+            'Akun berhasil login, tetapi profil dosen dengan email ini belum ada di Firebase (node dosen).');
+      }
+    }
+
+    // Cadangan: server FastAPI
+    http.Response? response;
     try {
-      final response = await http
+      response = await http
           .post(
             Uri.parse('$baseUrl/api/auth/login'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
-              'username_atau_email': username,
+              'username_atau_email': input,
               'password': password,
             }),
           )
           .timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        currentUser = UserDosen.fromJson(data['data_dosen']);
-        return currentUser!;
-      } else {
-        final data = jsonDecode(response.body);
-        throw Exception(data['detail'] ?? 'NIP/Password salah');
-      }
-    } catch (e) {
-      // Fallback Demo jika server offline tetapi dosen mencoba login default
-      if ((username.contains('dosen') || username.contains('1985')) &&
-          (password == 'dosen123' || password == 'admin123')) {
-        currentUser = UserDosen(
-          nip: '198501012010121001',
-          nama: 'Dr. Ir. Dosen Pengampu, M.Kom.',
-          email: 'dosen@polije.ac.id',
-          programStudi: 'Teknik Informatika',
-          mataKuliah: 'Vision AI & IoT Smart Classroom',
-          kelasAktif: 'TI-2F (Ruang Lab 3)',
-        );
-        return currentUser!;
-      }
-      rethrow;
+    } catch (_) {
+      response = null;
     }
+
+    if (response == null) {
+      throw Exception(
+          'Login gagal. Periksa email/kata sandi, atau server tidak dapat dihubungi.');
+    }
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      currentUser = UserDosen.fromJson(data['data_dosen']);
+      // [FIREBASE] login juga ke Firebase agar data bisa dibaca
+      await FirebaseService().signIn(currentUser!.email, password);
+      return currentUser!;
+    }
+
+    String pesan = 'NIP/Password salah';
+    try {
+      final data = jsonDecode(response.body);
+      pesan = (data['detail'] ?? pesan).toString();
+    } catch (_) {}
+    throw Exception(pesan);
   }
 
   // 3. Mengambil Data Presensi Mahasiswa
   Future<List<MahasiswaPresensi>> getPresensi() async {
+    // [FIREBASE] sumber utama: baca langsung dari Firebase
+    final fb = await FirebaseService().getPresensi();
+    if (fb != null && fb.isNotEmpty) return fb;
+
+    // Cadangan: server FastAPI
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/api/presensi'))
@@ -95,41 +119,17 @@ class ApiService {
       }
     } catch (_) {}
 
-    // Fallback Mock Presensi jika server offline
-    return [
-      MahasiswaPresensi(
-        nim: 'E41241919',
-        nama: 'Abiyyu Ijlal Rasib Novamatin',
-        jamKehadiran: '07:35 WIB',
-        status: 'Hadir',
-        aktivitasTerakhir: 'Memperhatikan',
-      ),
-      MahasiswaPresensi(
-        nim: 'E41241859',
-        nama: 'Adelia Hanifa Saharani',
-        jamKehadiran: '07:42 WIB',
-        status: 'Hadir',
-        aktivitasTerakhir: 'Memperhatikan',
-      ),
-      MahasiswaPresensi(
-        nim: 'E41242025',
-        nama: 'Muhammad Rahamadhani',
-        jamKehadiran: '07:48 WIB',
-        status: 'Hadir',
-        aktivitasTerakhir: 'Tertidur / Menunduk',
-      ),
-      MahasiswaPresensi(
-        nim: 'E41242065',
-        nama: 'Muhammad Akbar Ellia Menang',
-        jamKehadiran: '07:50 WIB',
-        status: 'Hadir',
-        aktivitasTerakhir: 'Memperhatikan',
-      ),
-    ];
+    // Tidak ada data di Firebase maupun server
+    return [];
   }
 
   // 4. Membaca Status IoT (Suhu & Kipas)
   Future<IoTState> getIoTStatus() async {
+    // [FIREBASE] sumber utama: baca langsung dari Firebase
+    final fb = await FirebaseService().getIoTStatus();
+    if (fb != null) return fb;
+
+    // Cadangan: server FastAPI
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/api/iot/status'))
@@ -141,18 +141,18 @@ class ApiService {
       }
     } catch (_) {}
 
-    // Fallback Mock State jika server belum terhubung
-    return IoTState(
-      suhu: 28.8,
-      kelembaban: 64.0,
-      modeKipas: 'Auto',
-      kecepatanKipas: 2,
-      statusRuangan: 'Normal Nyaman',
-    );
+    // Tidak ada data: nilai bawaan model
+    return IoTState.fromJson({});
   }
 
   // 5. Mengirim Perintah Kontrol Kipas ke IoT
   Future<IoTState> updateKipas(String mode, int kecepatan) async {
+    // [FIREBASE] sumber utama: tulis langsung ke Firebase
+    final fb =
+        await FirebaseService().updateKipas(mode, kecepatan, currentUser?.nip);
+    if (fb != null) return fb;
+
+    // Cadangan: server FastAPI
     try {
       final response = await http
           .post(
@@ -171,17 +171,16 @@ class ApiService {
       }
     } catch (_) {}
 
-    return IoTState(
-      suhu: 28.8,
-      kelembaban: 64.0,
-      modeKipas: mode,
-      kecepatanKipas: kecepatan,
-      statusRuangan: mode == 'Auto' ? 'Otomatis' : 'Manual Dosen',
-    );
+    return IoTState.fromJson({
+      'mode_kipas': mode,
+      'kecepatan_kipas': kecepatan,
+      'status_ruangan': mode == 'Auto' ? 'Otomatis' : 'Manual Dosen',
+    });
   }
 
   // 6. Jalankan Deteksi Tidur Langsung (Inference)
   Future<Map<String, dynamic>> deteksiTidur(String pathGambar) async {
+    // Inferensi gambar hanya bisa dilakukan server FastAPI
     try {
       final response = await http
           .post(
@@ -196,12 +195,16 @@ class ApiService {
       }
     } catch (_) {}
 
+    // [FIREBASE] jika server tidak ada, pakai ringkasan monitoring terbaru dari Firebase
+    final fb = await FirebaseService().getMonitoringRingkasan();
+    if (fb != null) return fb;
+
     return {
-      'status': 'mock',
+      'status': 'kosong',
       'ringkasan': {
-        'total_terdeteksi': 2,
-        'siswa_memperhatikan': 1,
-        'siswa_tertidur': 1
+        'total_terdeteksi': 0,
+        'siswa_memperhatikan': 0,
+        'siswa_tertidur': 0
       }
     };
   }

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/iot_state.dart';
 import '../services/api_service.dart';
+import '../services/firebase_service.dart';
 
 class IoTScreen extends StatefulWidget {
   const IoTScreen({super.key});
@@ -13,11 +15,31 @@ class _IoTScreenState extends State<IoTScreen> {
   IoTState? _iotState;
   bool _isLoading = true;
   bool _isUpdating = false;
+  StreamSubscription<IoTState?>? _iotSub;
 
   @override
   void initState() {
     super.initState();
     _fetchIoT();
+    // [FIREBASE] real-time: suhu, kelembaban, dan kipas berubah otomatis
+    try {
+      _iotSub = FirebaseService().watchIoT().listen(
+        (data) {
+          if (!mounted || data == null) return;
+          setState(() {
+            _iotState = data;
+            _isLoading = false;
+          });
+        },
+        onError: (Object e) {},
+      );
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _iotSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchIoT() async {
@@ -99,7 +121,7 @@ class _IoTScreenState extends State<IoTScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF1E3A8A).withOpacity(0.25),
+                          color: const Color(0xFF1E3A8A).withValues(alpha: 0.25),
                           blurRadius: 12,
                           offset: const Offset(0, 6),
                         ),
@@ -147,7 +169,7 @@ class _IoTScreenState extends State<IoTScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
+                                color: Colors.white.withValues(alpha: 0.15),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -206,7 +228,7 @@ class _IoTScreenState extends State<IoTScreen> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -325,7 +347,7 @@ class _IoTScreenState extends State<IoTScreen> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),

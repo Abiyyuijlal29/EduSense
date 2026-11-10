@@ -4,6 +4,24 @@ import '../models/user_dosen.dart';
 import '../models/iot_state.dart';
 import '../models/mahasiswa.dart';
 import '../services/api_service.dart';
+import '../services/firebase_service.dart';
+
+// Posisi kotak deteksi di area frame. Koordinat asli belum ada di Firebase,
+// jadi kotak ditempatkan pada slot tetap (maksimal 3 deteksi pertama).
+class _BoxSlot {
+  final double? left;
+  final double? right;
+  final double top;
+  final double width;
+  final double height;
+  const _BoxSlot({
+    this.left,
+    this.right,
+    required this.top,
+    required this.width,
+    required this.height,
+  });
+}
 
 class MonitoringScreen extends StatefulWidget {
   final UserDosen dosen;
@@ -20,17 +38,63 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   List<MahasiswaPresensi> _presensiList = [];
   Timer? _timer;
 
+  // [FIREBASE] data monitoring terbaru + langganan real-time
+  Map<String, dynamic>? _monitoring;
+  StreamSubscription<Map<String, dynamic>?>? _monitoringSub;
+  StreamSubscription<IoTState?>? _iotSub;
+  StreamSubscription<List<MahasiswaPresensi>>? _presensiSub;
+
+  static const List<_BoxSlot> _slots = [
+    _BoxSlot(left: 40, top: 40, width: 95, height: 110),
+    _BoxSlot(right: 50, top: 55, width: 105, height: 100),
+    _BoxSlot(left: 150, top: 120, width: 90, height: 80),
+  ];
+
   @override
   void initState() {
     super.initState();
     _refreshData();
     // Auto-refresh setiap 5 detik
     _timer = Timer.periodic(const Duration(seconds: 5), (_) => _refreshData());
+
+    // [FIREBASE] real-time: perubahan di Firebase langsung muncul tanpa menunggu timer
+    try {
+      _monitoringSub = FirebaseService().watchLatest('monitoring').listen(
+        (data) {
+          if (!mounted) return;
+          setState(() => _monitoring = data);
+        },
+        onError: (Object e) {},
+      );
+      _iotSub = FirebaseService().watchIoT().listen(
+        (data) {
+          if (!mounted || data == null) return;
+          setState(() {
+            _iotState = data;
+            _isLoading = false;
+          });
+        },
+        onError: (Object e) {},
+      );
+      _presensiSub = FirebaseService().watchPresensi().listen(
+        (data) {
+          if (!mounted || data.isEmpty) return;
+          setState(() {
+            _presensiList = data;
+            _isLoading = false;
+          });
+        },
+        onError: (Object e) {},
+      );
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _monitoringSub?.cancel();
+    _iotSub?.cancel();
+    _presensiSub?.cancel();
     super.dispose();
   }
 
@@ -49,10 +113,64 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     }
   }
 
+  // [FIREBASE] daftar deteksi dari monitoring/<sesi>/detail_deteksi
+  List<Map<String, dynamic>> _deteksiList() {
+    final raw = _monitoring?['detail_deteksi'];
+    Iterable<dynamic> items = const [];
+    if (raw is List) {
+      items = raw;
+    } else if (raw is Map) {
+      items = raw.values;
+    }
+    return items
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  List<Widget> _buildDeteksiBoxes() {
+    final list = _deteksiList();
+    final widgets = <Widget>[];
+    for (int i = 0; i < list.length && i < _slots.length; i++) {
+      final d = list[i];
+      final status = (d['status'] ?? '').toString().toLowerCase();
+      final sleeping = (d['label'] ?? '').toString() == 'head_down' ||
+          status.contains('tidur') ||
+          status.contains('menunduk');
+      final nama = (d['nama'] ?? '').toString();
+      final conf = d['confidence'] is num
+          ? (d['confidence'] as num).toStringAsFixed(2)
+          : '-';
+      final slot = _slots[i];
+      widgets.add(
+        Positioned(
+          left: slot.left,
+          right: slot.right,
+          top: slot.top,
+          child: _buildBoundingBox(
+            label: '$nama (${sleeping ? 'Tertidur' : 'Fokus'})',
+            confidence: conf,
+            color: sleeping ? Colors.redAccent : Colors.greenAccent,
+            width: slot.width,
+            height: slot.height,
+          ),
+        ),
+      );
+    }
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     int siswaTidur = _presensiList.where((m) => m.isTertidur).length;
     int siswaFokus = _presensiList.length - siswaTidur;
+
+    // [FIREBASE] status AI, model, resolusi, dan fps dibaca dari Firebase
+    final bool aiOnline =
+        _isServerOnline || (_monitoring?['server_online'] == true);
+    final String modelAi = (_monitoring?['model_ai'] ?? '-').toString();
+    final String resolusi = (_monitoring?['resolusi'] ?? '-').toString();
+    final String fps = (_monitoring?['fps'] ?? '-').toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
@@ -82,12 +200,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: _isServerOnline
-                  ? Colors.green.shade50
-                  : Colors.orange.shade50,
+              color: aiOnline ? Colors.green.shade50 : Colors.orange.shade50,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: _isServerOnline ? Colors.green : Colors.orange,
+                color: aiOnline ? Colors.green : Colors.orange,
                 width: 1,
               ),
             ),
@@ -96,16 +212,15 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
               children: [
                 CircleAvatar(
                   radius: 4,
-                  backgroundColor:
-                      _isServerOnline ? Colors.green : Colors.orange,
+                  backgroundColor: aiOnline ? Colors.green : Colors.orange,
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  _isServerOnline ? 'AI Online' : 'Mock Mode',
+                  aiOnline ? 'AI Online' : 'AI Offline',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: _isServerOnline
+                    color: aiOnline
                         ? Colors.green.shade800
                         : Colors.orange.shade800,
                   ),
@@ -137,7 +252,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.red.shade300.withOpacity(0.5),
+                              color: Colors.red.shade300.withValues(alpha: 0.5),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -163,7 +278,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                   Text(
                                     '$siswaTidur mahasiswa terdeteksi menunduk / tertidur saat sesi materi.',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Colors.white.withValues(alpha: 0.9),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -182,7 +297,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                           ),
@@ -218,9 +333,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                   ],
                                 ),
                                 Text(
-                                  'Model: YOLOv8s Custom',
+                                  'Model: $modelAi',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                     fontSize: 10,
                                   ),
                                 ),
@@ -244,13 +359,13 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                       Icon(
                                         Icons.videocam_outlined,
                                         size: 48,
-                                        color: Colors.white.withOpacity(0.3),
+                                        color: Colors.white.withValues(alpha: 0.3),
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        'Frame Realtime Lab Komputer TI-2F',
+                                        'Frame Realtime ${widget.dosen.kelasAktif}',
                                         style: TextStyle(
-                                          color: Colors.white.withOpacity(0.6),
+                                          color: Colors.white.withValues(alpha: 0.6),
                                           fontSize: 12,
                                         ),
                                       ),
@@ -259,31 +374,8 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                 ),
                               ),
 
-                              // Simulasi Overlay Bounding Box Wajah 1 (Fokus)
-                              Positioned(
-                                left: 40,
-                                top: 40,
-                                child: _buildBoundingBox(
-                                  label: 'Abiyyu (Fokus)',
-                                  confidence: '0.94',
-                                  color: Colors.greenAccent,
-                                  width: 95,
-                                  height: 110,
-                                ),
-                              ),
-
-                              // Simulasi Overlay Bounding Box Wajah 2 (Tidur)
-                              Positioned(
-                                right: 50,
-                                top: 55,
-                                child: _buildBoundingBox(
-                                  label: 'Rahamadhani (Tertidur)',
-                                  confidence: '0.89',
-                                  color: Colors.redAccent,
-                                  width: 105,
-                                  height: 100,
-                                ),
-                              ),
+                              // [FIREBASE] Overlay Bounding Box dari detail_deteksi
+                              ..._buildDeteksiBoxes(),
                             ],
                           ),
 
@@ -295,9 +387,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'Resolusi: 640x360 @ 25fps',
-                                  style: TextStyle(
+                                Text(
+                                  'Resolusi: $resolusi @ ${fps}fps',
+                                  style: const TextStyle(
                                       color: Colors.white70, fontSize: 11),
                                 ),
                                 TextButton.icon(
@@ -398,7 +490,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -483,10 +575,13 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             color: color,
             child: Text(
               '$label $confidence',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.black,
                 fontSize: 8.5,
@@ -512,7 +607,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
