@@ -1,0 +1,199 @@
+{
+  "dosen": {
+    "198501012010121001": {
+      "nip": "198501012010121001",
+      "nama": "Dr. Ir. Dosen Pengampu, M.Kom.",
+      "email": "dosen@polije.ac.id",
+      "password": "dosen123",
+      "program_studi": "Teknik Informatika",
+      "mata_kuliah": "Vision AI & IoT Smart Classroom",
+      "kelas_aktif": "TI-2F (Ruang Lab 3)"
+    }
+  },
+
+  "mahasiswa": {
+    "E41241919": {
+      "nim": "E41241919",
+      "nama": "Abiyyu Ijlal Rasib Novamatin",
+      "samples_captured": 15,
+      "terdaftar_pada": "2026-11-06T00:00:00Z"
+    },
+    "E41241859": {
+      "nim": "E41241859",
+      "nama": "Adelia Hanifa Saharani",
+      "samples_captured": 15,
+      "terdaftar_pada": "2026-11-06T00:00:00Z"
+    },
+    "E41242025": {
+      "nim": "E41242025",
+      "nama": "Muhammad Rahamadhani",
+      "samples_captured": 15,
+      "terdaftar_pada": "2026-11-06T00:00:00Z"
+    },
+    "E41242065": {
+      "nim": "E41242065",
+      "nama": "Muhammad Akbar Ellia Menang",
+      "samples_captured": 15,
+      "terdaftar_pada": "2026-11-06T00:00:00Z"
+    }
+  },
+
+  "registrasi_wajah": {
+    "E41241919": {
+      "nim": "E41241919",
+      "nama": "Abiyyu Ijlal Rasib Novamatin",
+      "jumlah_sampel": 15,
+      "status_registrasi": "Selesai",
+      "pesan": "15 sampel wajah untuk Abiyyu Ijlal Rasib Novamatin (E41241919) berhasil disimpan ke folder dataset_absensi.",
+      "terdaftar_pada": "2026-11-06T00:00:00Z"
+    },
+    "E41241859": {
+      "nim": "E41241859",
+      "nama": "Adelia Hanifa Saharani",
+      "jumlah_sampel": 15,
+      "status_registrasi": "Selesai",
+      "pesan": "15 sampel wajah untuk Adelia Hanifa Saharani (E41241859) berhasil disimpan ke folder dataset_absensi.",
+      "terdaftar_pada": "2026-11-06T00:00:00Z"
+    },
+    "E41242025": {
+      "nim": "E41242025",
+      "nama": "Muhammad Rahamadhani",
+      "jumlah_sampel": 15,
+      "status_registrasi": "Selesai",
+      "pesan": "15 sampel wajah untuk Muhammad Rahamadhani (E41242025) berhasil disimpan ke folder dataset_absensi.",
+      "terdaftar_pada": "2026-11-06T00:00:00Z"
+    },
+    "E41242065": {
+      "nim": "E41242065",
+      "nama": "Muhammad Akbar Ellia Menang",
+      "jumlah_sampel": 15,
+      "status_registrasi": "Selesai",
+      "pesan": "15 sampel wajah untuk Muhammad Akbar Ellia Menang (E41242065) berhasil disimpan ke folder dataset_absensi.",
+      "terdaftar_pada": "2026-11-06T00:00:00Z"
+    }
+  },
+
+  "presensi": {
+    "2026-11-06_TI-2F": {
+      "kelas": "TI-2F",
+      "tanggal": "2026-11-06T00:00:00Z",
+      "total_mahasiswa": 4,
+      "jumlah_hadir": 4,
+      "jumlah_absen": 0,
+      "jumlah_tertidur": 1,
+      "mahasiswa": {
+        "E41241919": {
+          "nim": "E41241919",
+          "nama": "Abiyyu Ijlal Rasib Novamatin",
+          "jam_kehadiran": "07:35 WIB",
+          "status": "Hadir",
+          "aktivitas_terakhir": "Memperhatikan"
+        },
+        "E41241859": {
+          "nim": "E41241859",
+          "nama": "Adelia Hanifa Saharani",
+          "jam_kehadiran": "07:42 WIB",
+          "status": "Hadir",
+          "aktivitas_terakhir": "Memperhatikan"
+        },
+        "E41242025": {
+          "nim": "E41242025",
+          "nama": "Muhammad Rahamadhani",
+          "jam_kehadiran": "07:48 WIB",
+          "status": "Hadir",
+          "aktivitas_terakhir": "Tertidur / Menunduk"
+        },
+        "E41242065": {
+          "nim": "E41242065",
+          "nama": "Muhammad Akbar Ellia Menang",
+          "jam_kehadiran": "07:50 WIB",
+          "status": "Hadir",
+          "aktivitas_terakhir": "Memperhatikan"
+        }
+      }
+    }
+  },
+
+  "monitoring": {
+    "sesi_2026-11-06_TI-2F": {
+      "kelas": "TI-2F",
+      "timestamp": "2026-11-06T00:35:00Z",
+      "model_ai": "YOLOv8s Custom",
+      "resolusi": "640x360",
+      "fps": 25,
+      "server_online": true,
+      "siswa_hadir": 4,
+      "siswa_memperhatikan": 3,
+      "siswa_tertidur": 1,
+      "detail_deteksi": [
+        {
+          "nama": "Abiyyu Ijlal Rasib Novamatin",
+          "nim": "E41241919",
+          "label": "wajah",
+          "confidence": 0.94,
+          "status": "Memperhatikan"
+        },
+        {
+          "nama": "Muhammad Rahamadhani",
+          "nim": "E41242025",
+          "label": "head_down",
+          "confidence": 0.89,
+          "status": "Tertidur / Menunduk"
+        }
+      ]
+    }
+  },
+
+  "alert_tidur": {
+    "alert_001": {
+      "kelas": "TI-2F",
+      "timestamp": "2026-11-06T00:35:00Z",
+      "jumlah_tertidur": 1,
+      "pesan": "1 mahasiswa terdeteksi menunduk / tertidur saat sesi materi.",
+      "mahasiswa_tertidur": [
+        {
+          "nim": "E41242025",
+          "nama": "Muhammad Rahamadhani",
+          "label": "head_down",
+          "confidence": 0.89
+        }
+      ]
+    }
+  },
+
+  "iot_ruangan": {
+    "lab3_TI-2F": {
+      "id_ruangan": "lab3_TI-2F",
+      "nama_ruangan": "Lab Komputer TI-2F",
+      "suhu": 28.8,
+      "kelembaban": 64.0,
+      "mode_kipas": "Auto",
+      "kecepatan_kipas": 2,
+      "status_ruangan": "Normal Nyaman",
+      "updated_at": "2026-11-06T00:35:00Z"
+    }
+  },
+
+  "log_kontrol_kipas": {
+    "log_001": {
+      "id_ruangan": "lab3_TI-2F",
+      "timestamp": "2026-11-06T00:35:00Z",
+      "mode_sebelum": "Manual",
+      "mode_sesudah": "Auto",
+      "kecepatan_sebelum": 0,
+      "kecepatan_sesudah": 2,
+      "pesan": "Kipas diubah ke mode Auto (Kecepatan: 2)",
+      "diubah_oleh": "198501012010121001"
+    },
+    "log_002": {
+      "id_ruangan": "lab3_TI-2F",
+      "timestamp": "2026-11-06T01:00:00Z",
+      "mode_sebelum": "Auto",
+      "mode_sesudah": "Manual",
+      "kecepatan_sebelum": 2,
+      "kecepatan_sesudah": 3,
+      "pesan": "Kipas diubah ke mode Manual (Kecepatan: 3)",
+      "diubah_oleh": "198501012010121001"
+    }
+  }
+}
