@@ -11,11 +11,12 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  // URL default: 10.0.2.2 untuk emulator Android, 127.0.0.1 untuk Windows Desktop/Web
+  // URL default: IP laptop di hotspot HP untuk device fisik Android
+  // Ganti IP ini sesuai hasil ipconfig saat laptop konek ke hotspot HP
   String baseUrl = kIsWeb
       ? 'http://127.0.0.1:8000'
       : (defaultTargetPlatform == TargetPlatform.android
-          ? 'http://10.0.2.2:8000'
+          ? 'http://10.163.232.154:8000'
           : 'http://127.0.0.1:8000');
 
   UserDosen? currentUser;
@@ -207,5 +208,40 @@ class ApiService {
         'siswa_tertidur': 0
       }
     };
+  }
+
+  // 7. Kontrol Kamera Laptop / CCTV Real-time
+  Future<Map<String, dynamic>> getCameraStatus() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$baseUrl/api/kamera/status'))
+          .timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (_) {}
+    return {'is_running': false, 'fps': 0.0};
+  }
+
+  Future<bool> startCamera() async {
+    try {
+      final res = await http
+          .post(Uri.parse('$baseUrl/api/kamera/start'))
+          .timeout(const Duration(seconds: 4));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> stopCamera() async {
+    try {
+      final res = await http
+          .post(Uri.parse('$baseUrl/api/kamera/stop'))
+          .timeout(const Duration(seconds: 4));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 }

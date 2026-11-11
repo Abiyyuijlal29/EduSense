@@ -346,36 +346,13 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                           // Area Frame Gambar Kamera dengan Bounding Boxes
                           Stack(
                             children: [
-                              Container(
-                                height: 210,
-                                width: double.infinity,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF0F172A),
-                                ),
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.videocam_outlined,
-                                        size: 48,
-                                        color: Colors.white.withValues(alpha: 0.3),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Frame Realtime ${widget.dosen.kelasAktif}',
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.6),
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                              _LiveCctvFeed(
+                                isOnline: aiOnline,
+                                kelas: widget.dosen.kelasAktif,
                               ),
 
-                              // [FIREBASE] Overlay Bounding Box dari detail_deteksi
-                              ..._buildDeteksiBoxes(),
+                              // [FIREBASE] Overlay Bounding Box jika data berasal dari riwayat Firebase
+                              if (!aiOnline) ..._buildDeteksiBoxes(),
                             ],
                           ),
 
@@ -636,6 +613,226 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Widget Live Video Streaming Feed dari Kamera Laptop / CCTV Server
+class _LiveCctvFeed extends StatefulWidget {
+  final bool isOnline;
+  final String kelas;
+  const _LiveCctvFeed({required this.isOnline, required this.kelas});
+
+  @override
+  State<_LiveCctvFeed> createState() => _LiveCctvFeedState();
+}
+
+class _LiveCctvFeedState extends State<_LiveCctvFeed> {
+  Timer? _streamTimer;
+  int _timestamp = DateTime.now().millisecondsSinceEpoch;
+  bool _hasFeedError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startStreamPolling();
+  }
+
+  void _startStreamPolling() {
+    _streamTimer?.cancel();
+    // Refresh frame setiap 120ms (~8-10 FPS live snapshot yang stabil di HTTP)
+    _streamTimer = Timer.periodic(const Duration(milliseconds: 120), (_) {
+      if (mounted && widget.isOnline && !_hasFeedError) {
+        setState(() {
+          _timestamp = DateTime.now().millisecondsSinceEpoch;
+        });
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _LiveCctvFeed oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isOnline != oldWidget.isOnline) {
+      if (widget.isOnline) {
+        _hasFeedError = false;
+        _startStreamPolling();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _streamTimer?.cancel();
+    super.dispose();
+  }
+
+  void _showServerDialog(BuildContext context) {
+    final controller = TextEditingController(text: ApiService().baseUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ubah Alamat Server CCTV'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Masukkan IP Laptop Anda di jaringan Wi-Fi:',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'http://192.168.100.78:8000',
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Catatan: HP dan Laptop harus berada di satu jaringan Wi-Fi yang sama.',
+              style: TextStyle(fontSize: 11, color: Colors.blueGrey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              ApiService().updateBaseUrl(controller.text);
+              Navigator.pop(ctx);
+              setState(() {});
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isOnline || _hasFeedError) {
+      return Container(
+        height: 210,
+        width: double.infinity,
+        color: const Color(0xFF0F172A),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                widget.isOnline
+                    ? Icons.videocam_off_outlined
+                    : Icons.wifi_off_rounded,
+                size: 44,
+                color: Colors.white.withValues(alpha: 0.35),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.isOnline
+                    ? 'Kamera Belum Aktif di Server'
+                    : 'Server CCTV Belum Terhubung',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Alamat: ${ApiService().baseUrl}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 11,
+                ),
+              ),
+              if (_hasFeedError) ...[
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E293B),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  ),
+                  onPressed: () {
+                    setState(() => _hasFeedError = false);
+                    _startStreamPolling();
+                  },
+                  icon: const Icon(Icons.refresh,
+                      size: 14, color: Colors.blueAccent),
+                  label: const Text('Hubungkan Ulang',
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.blueAccent)),
+                )
+              ]
+            ],
+          ),
+        ),
+      );
+    }
+
+    final frameUrl = '${ApiService().baseUrl}/api/kamera/frame?t=$_timestamp';
+
+    return Image.network(
+      frameUrl,
+      height: 210,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: (context, error, stackTrace) {
+        return InkWell(
+          onTap: () => _showServerDialog(context),
+          child: Container(
+            height: 210,
+            width: double.infinity,
+            color: const Color(0xFF0F172A),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.blueAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Menghubungkan Stream Kamera CCTV...',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    ApiService().baseUrl,
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4), fontSize: 10),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.4)),
+                    ),
+                    child: const Text(
+                      'Ketuk untuk Ubah IP Server',
+                      style: TextStyle(color: Colors.lightBlueAccent, fontSize: 10),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

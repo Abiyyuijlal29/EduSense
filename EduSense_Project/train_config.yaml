@@ -1,0 +1,30 @@
+# =====================================================================
+# Hyperparameter Pelatihan YOLOv8 EduSense (Optimasi Berbagai Kondisi)
+# =====================================================================
+# Parameter augmentasi berikut dirancang khusus untuk mengatasi keterbatasan
+# variasi kondisi fisik (pencahayaan, jarak meja, sudut kemiringan):
+
+# 1. Augmentasi Pencahayaan (Mengatasi ruang kelas terang / redup proyektor)
+hsv_h: 0.015    # Variasi rona warna (hue)
+hsv_s: 0.7      # Variasi saturasi warna
+hsv_v: 0.4      # Variasi kecerahan (brightness/value) -> melatih model tahan redup & silau
+
+# 2. Augmentasi Geometri & Sudut (Mengatasi variasi kemiringan duduk / kamera)
+degrees: 10.0   # Rotasi citra acak +/- 10 derajat
+translate: 0.1  # Pergeseran posisi horizontal/vertikal 10%
+scale: 0.5      # Skala zoom in / zoom out 50% -> melatih deteksi jarak jauh (baris belakang)
+fliplr: 0.5     # Flip horizontal 50% -> melatih posisi tidur/menghadap kiri maupun kanan
+
+# 3. Augmentasi Komposisi & Oklusi (Mengatasi sebagian tubuh tertutup meja/teman)
+mosaic: 1.0     # Menggabungkan 4 frame acak menjadi 1 kanvas latihan
+mixup: 0.15     # Menumpuk dua citra transparan untuk melatih fitur yang robust
+erasing: 0.2    # Menghapus sebagian kecil area acak untuk simulasi oklusi tertutup tangan/buku
+
+# 4. Pengaturan Pelatihan Standar
+epochs: 100
+patience: 25    # Early stopping jika tidak ada peningkatan dalam 25 epoch
+batch: 16
+imgsz: 640
+optimizer: AdamW
+lr0: 0.001
+lrf: 0.01
