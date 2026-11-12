@@ -1,0 +1,56 @@
+# =====================================================================
+# .gitignore untuk Proyek EduSense (Python AI + Flutter Mobile)
+# =====================================================================
+
+# 1. Lingkungan Virtual Python (Virtual Environments)
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# 2. Bytecode & Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.pytype/
+
+# 3. File Arsip Dataset Besar
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# 4. Folder Hasil Percobaan & Tangkapan Layar Webcam
+EduSense_Project/hasil_percobaan_kamera/screenshot_*.jpg
+
+# 5. Output Pelatihan YOLO & Checkpoint Sementara
+runs/
+*.epoch
+last.pt
+
+# 6. Flutter & Dart (Mobile App)
+edusense_mobile/.dart_tool/
+edusense_mobile/build/
+edusense_mobile/.flutter-plugins
+edusense_mobile/.flutter-plugins-dependencies
+edusense_mobile/.pub-cache/
+edusense_mobile/.pub/
+edusense_mobile/android/.gradle/
+edusense_mobile/android/local.properties
+edusense_mobile/ios/.symlinks/
+edusense_mobile/ios/Pods/
+edusense_mobile/ios/Podfile.lock
+
+# 7. File Konfigurasi Editor / IDE & OS
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+desktop.ini

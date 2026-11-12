@@ -27,7 +27,6 @@ app.add_middleware(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_CUSTOM = os.path.join(BASE_DIR, "models", "best.pt")
-CASCADE_PATH = os.path.join(BASE_DIR, "haarcascade_frontalface_default.xml")
 
 # Pengecekan ketersediaan library ultralytics
 try:
@@ -50,17 +49,6 @@ if ULTRALYTICS_AVAILABLE:
         print("[INIT] Memuat model fallback 'yolov8n.pt' untuk pengujian API...")
         model = YOLO("yolov8n.pt")
         nama_model_aktif = "yolov8n.pt (Pre-trained Fallback)"
-
-# Pengecekan Haar Cascade untuk fallback deteksi wajah
-face_cascade = None
-if os.path.exists(CASCADE_PATH):
-    face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
-    if face_cascade.empty():
-        face_cascade = None
-else:
-    cascade_cv2 = os.path.join(getattr(cv2.data, 'haarcascades', ''), "haarcascade_frontalface_default.xml")
-    if os.path.exists(cascade_cv2):
-        face_cascade = cv2.CascadeClassifier(cascade_cv2)
 
 
 class CameraManager:
@@ -189,10 +177,10 @@ class CameraManager:
                 c_tidur = 0
                 det_name = "Tidak Ada"
 
-                # 1. Inferensi YOLOv8s EduSense
+                # 1. Inferensi Murni YOLOv8 EduSense
                 if model is not None:
                     try:
-                        results = model.predict(raw_rgb, conf=0.20, imgsz=320, verbose=False)
+                        results = model.predict(raw_rgb, conf=0.40, imgsz=320, verbose=False)
                         for r in results:
                             for box in r.boxes:
                                 cls_id = int(box.cls[0])
@@ -212,20 +200,9 @@ class CameraManager:
                                 current_boxes.append((x1, y1, x2, y2, color, label_display))
 
                         if c_wajah > 0 or c_tidur > 0:
-                            det_name = "YOLOv8s"
+                            det_name = nama_model_aktif
                     except Exception:
                         pass
-
-                # 2. Fallback Haar Cascade
-                if (c_wajah == 0 and c_tidur == 0) and face_cascade is not None:
-                    gray_small = cv2.resize(gray, (0, 0), fx=0.5, fy=0.5)
-                    faces = face_cascade.detectMultiScale(gray_small, scaleFactor=1.1, minNeighbors=4, minSize=(30, 30))
-                    if len(faces) > 0:
-                        c_wajah = len(faces)
-                        det_name = "Haar Cascade"
-                        for (x, y, w, h) in faces:
-                            x1, y1, x2, y2 = x * 2, y * 2, (x + w) * 2, (y + h) * 2
-                            current_boxes.append((x1, y1, x2, y2, (0, 255, 0), "Memperhatikan (Wajah)"))
 
                 cached_boxes = current_boxes
                 self.count_wajah = c_wajah
