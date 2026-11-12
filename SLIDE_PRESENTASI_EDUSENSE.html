@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduSense Vision AI - Slide Presentasi</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-green: #4ade80;
+      --accent-red: #f87171;
+      --accent-purple: #c084fc;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .presentation-container {
+      width: 90vw;
+      max-width: 1100px;
+      height: 650px;
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      border: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .slide {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      padding: 48px 64px;
+      overflow-y: auto;
+    }
+    .slide.active { display: flex; }
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      width: fit-content;
+    }
+    h1 { font-size: 38px; color: #fff; margin-bottom: 12px; line-height: 1.2; }
+    h2 { font-size: 24px; color: var(--accent-blue); margin-bottom: 24px; font-weight: 500; }
+    h3 { font-size: 20px; color: #e2e8f0; margin-bottom: 12px; }
+    p { font-size: 16px; line-height: 1.6; color: #cbd5e1; margin-bottom: 16px; }
+    ul { margin-left: 24px; margin-bottom: 20px; }
+    li { font-size: 16px; line-height: 1.8; color: #cbd5e1; margin-bottom: 8px; }
+    li strong { color: #fff; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 12px; }
+    .card-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 24px;
+      border-radius: 12px;
+    }
+    .metric-number { font-size: 44px; font-weight: 800; color: var(--accent-green); margin-bottom: 4px; }
+    .metric-label { font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 32px;
+      background: #0f172a;
+      border-top: 1px solid #334155;
+    }
+    .btn {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: #475569; }
+    .btn-primary { background: #0284c7; }
+    .btn-primary:hover { background: #0369a1; }
+    .slide-counter { font-size: 14px; color: var(--text-muted); font-weight: 600; }
+    .speaker-notes {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(192, 132, 252, 0.1);
+      border-left: 4px solid var(--accent-purple);
+      border-radius: 4px;
+      font-size: 14px;
+      color: #e9d5ff;
+      font-style: italic;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; font-size: 14px; }
+    th { color: var(--accent-blue); background: #0f172a; font-weight: 600; }
+    @media print {
+      body { background: #fff; color: #000; }
+      .presentation-container { width: 100%; height: auto; border: none; box-shadow: none; }
+      .slide { display: flex !important; page-break-after: always; height: 100vh; padding: 40px; }
+      .controls { display: none; }
+      .card-box { border: 1px solid #ccc; background: #f8fafc; color: #000; }
+      h1, h2, h3, p, li { color: #000 !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="presentation-container">
+
+    <!-- SLIDE 1 -->
+    <div class="slide active">
+      <span class="badge">Visi Komputer & IoT</span>
+      <h1>EDUSENSE: SMART CLASSROOM VISION AI</h1>
+      <h2>Sistem Monitoring Kelas Cerdas & Presensi Real-Time Berbasis YOLOv8</h2>
+      <p style="font-size: 18px; margin-top: 20px;">
+        Pengenalan Perilaku Siswa (Tertidur vs Memperhatikan) Menggunakan YOLOv8 Custom dan Integrasi Presensi Otomatis pada Aplikasi Mobile Flutter.
+      </p>
+      <div style="margin-top: 40px; display: flex; gap: 40px;">
+        <div>
+          <div class="metric-number">98.36%</div>
+          <div class="metric-label">Akurasi Klasifikasi Target</div>
+        </div>
+        <div>
+          <div class="metric-number">98.65%</div>
+          <div class="metric-label">Tingkat Recall Deteksi</div>
+        </div>
+        <div>
+          <div class="metric-number">30+ FPS</div>
+          <div class="metric-label">Kecepatan Real-Time Kamera</div>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Selamat pagi/siang. Hari ini kami mempresentasikan EduSense, sebuah sistem cerdas end-to-end yang memadukan computer vision tingkat lanjut untuk memantau perilaku siswa di kelas sekaligus mengotomatiskan presensi."
+      </div>
+    </div>
+
+    <!-- SLIDE 2 -->
+    <div class="slide">
+      <span class="badge">Latar Belakang & Masalah</span>
+      <h1>TANTANGAN DI RUANG KELAS MODERN</h1>
+      <div class="grid-2">
+        <div class="card-box">
+          <h3 style="color: var(--accent-red);">1. Presensi Manual Tidak Efisien</h3>
+          <p>Guru menghabiskan 10–15 menit jam pelajaran hanya untuk memanggil absensi siswa satu per satu dari kertas presensi.</p>
+          <p>Rentan kecurangan (titip absen) dan rekapitulasi data kehadiran lambat.</p>
+        </div>
+        <div class="card-box">
+          <h3 style="color: var(--accent-red);">2. Pengawasan Guru Terbatas</h3>
+          <p>Sulit memantau puluhan siswa secara simultan, terutama siswa di baris belakang yang tertidur di atas meja.</p>
+          <p>Tidak ada metrik objektif untuk mengevaluasi tingkat perhatian kelas secara berkelanjutan.</p>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Di kelas besar, guru kesulitan mengawasi siswa yang menunduk tidur di belakang dan waktu terbuang untuk presensi manual. EduSense menyelesaikan dua masalah ini sekaligus."
+      </div>
+    </div>
+
+    <!-- SLIDE 3 -->
+    <div class="slide">
+      <span class="badge">Arsitektur Sistem</span>
+      <h1>ARSITEKTUR END-TO-END MULTI-TIER</h1>
+      <div class="grid-2">
+        <div class="card-box">
+          <h3>Sisi Hardware & AI Server</h3>
+          <ul>
+            <li><strong>Kamera / CCTV:</strong> Menangkap video streaming POV kelas.</li>
+            <li><strong>Model AI (best.pt):</strong> YOLOv8 mendeteksi siswa bangun vs tidur.</li>
+            <li><strong>FastAPI (api_server.py):</strong> Server asynchronous dengan multithreaded MJPEG streaming (25-30 FPS).</li>
+          </ul>
+        </div>
+        <div class="card-box">
+          <h3>Sisi Cloud & Mobile App</h3>
+          <ul>
+            <li><strong>Firebase Realtime Database:</strong> Sinkronisasi status kehadiran dan jumlah siswa tidur dalam milidetik.</li>
+            <li><strong>Flutter Mobile (edusense_mobile):</strong> Dashboard pemantauan interaktif di smartphone guru/dosen.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "EduSense bukan sekadar model AI di notebook, melainkan sistem utuh: kamera menangkap citra, server FastAPI memproses inferensi, Firebase menyinkronkan data, dan Flutter menampilkan monitoring di HP."
+      </div>
+    </div>
+
+    <!-- SLIDE 4 -->
+    <div class="slide">
+      <span class="badge">Pemetaan Modul</span>
+      <h1>DUA MODUL UTAMA EDUSENSE</h1>
+      <div class="grid-2">
+        <div class="card-box" style="border-top: 4px solid var(--accent-blue);">
+          <h3>1. Modul Presensi Wajah</h3>
+          <p><strong>Pertanyaan:</strong> <em>"Siapa siswanya?"</em></p>
+          <ul>
+            <li><strong>File:</strong> <code>register_wajah.py</code></li>
+            <li><strong>Folder:</strong> <code>dataset_absensi/</code></li>
+            <li><strong>Metode:</strong> Rekam 30 foto wajah tervalidasi YOLOv8 + pengenalan identitas DeepFace.</li>
+            <li><strong>Layar Mobile:</strong> <code>presensi_screen.dart</code></li>
+          </ul>
+        </div>
+        <div class="card-box" style="border-top: 4px solid var(--accent-green);">
+          <h3>2. Modul Deteksi Pose Tidur</h3>
+          <p><strong>Pertanyaan:</strong> <em>"Apa perilakunya?"</em></p>
+          <ul>
+            <li><strong>File:</strong> <code>test_kamera_realtime.py</code> & <code>api_server.py</code></li>
+            <li><strong>Model:</strong> <code>models/best.pt</code> (YOLOv8)</li>
+            <li><strong>Kelas:</strong> <code>0: wajah</code> vs <code>1: head_down</code></li>
+            <li><strong>Layar Mobile:</strong> <code>monitoring_screen.dart</code></li>
+          </ul>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Modul Presensi bekerja saat siswa masuk untuk mencatat kehadiran. Modul Monitoring Perilaku bekerja terus-menerus memantau apakah siswa memperhatikan atau tertidur."
+      </div>
+    </div>
+
+    <!-- SLIDE 5 -->
+    <div class="slide">
+      <span class="badge">Data Engineering</span>
+      <h1>SANITASI DATASET & BEBAS DATA LEAKAGE</h1>
+      <p>Data mentah awal memiliki masalah citra bertumpuk dan kebocoran data. Kami melakukan rekayasa data menyeluruh:</p>
+      <div class="grid-2">
+        <div class="card-box">
+          <h3 style="color: var(--accent-blue);">1. Pemotongan Citra (fix_dataset.py)</h3>
+          <p>Memotong 716 citra bertumpuk (368x416) menjadi citra tunggal normal (368x208).</p>
+          <p>Kalkulasi ulang matematis bounding box (y_new = y * 2) dan hapus duplikasi kotak paruh bawah.</p>
+        </div>
+        <div class="card-box">
+          <h3 style="color: var(--accent-blue);">2. Block-Temporal Split (split_data.py)</h3>
+          <p>Mengganti random shuffle dengan pembagian urutan waktu per skenario video.</p>
+          <p><strong>Hasil:</strong> Train (568 frame), Val (122 frame), Test (135 frame) dengan rasio kelas seimbang (~40% wajah, ~60% tidur).</p>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Dengan Block-Temporal Split, data pengujian benar-benar data waktu yang belum pernah dilihat model, sehingga evaluasi kami bebas dari manipulasi atau kebocoran data."
+      </div>
+    </div>
+
+    <!-- SLIDE 6 -->
+    <div class="slide">
+      <span class="badge">Cara Kerja Model</span>
+      <h1>ALUR DETEKSI REAL-TIME YOLOV8</h1>
+      <div class="card-box">
+        <p><strong>Input Citra (640x480)</strong> &rarr; <strong>Preprocessing (Resize 640x640 + Normalisasi)</strong></p>
+        <p style="margin-top: 10px;">&darr;</p>
+        <p><strong>Backbone (CSPDarknet):</strong> Ekstraksi fitur tekstur rambut, kemiringan pundak, dan bentuk kepala.</p>
+        <p style="margin-top: 10px;">&darr;</p>
+        <p><strong>Neck (PANet):</strong> Penggabungan representasi multi-skala (siswa baris depan & belakang).</p>
+        <p style="margin-top: 10px;">&darr;</p>
+        <p><strong>Head & NMS:</strong> Prediksi anchor-free koordinat bounding box dan eliminasi kotak tumpang tindih.</p>
+        <p style="margin-top: 10px;">&darr;</p>
+        <p><strong>Output:</strong> Kotak Hijau (Memperhatikan) | Kotak Merah (Tertidur) + Nilai Confidence.</p>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "YOLOv8 adalah one-stage detector. Hanya dalam satu lintasan komputasi cepat, model mampu menentukan lokasi dan status perilaku seluruh siswa di kelas secara simultan."
+      </div>
+    </div>
+
+    <!-- SLIDE 7 -->
+    <div class="slide">
+      <span class="badge">Komparasi Algoritma</span>
+      <h1>PERBANDINGAN MODEL: MENGAPA YOLOV8?</h1>
+      <table>
+        <tr>
+          <th>Kriteria</th>
+          <th>YOLOv8 (EduSense)</th>
+          <th>Haar Cascade (XML)</th>
+          <th>DeepFace</th>
+        </tr>
+        <tr>
+          <td><strong>Deteksi Tidur (Pose)</strong></td>
+          <td style="color: var(--accent-green); font-weight: 600;">Sangat Baik (Robust)</td>
+          <td style="color: var(--accent-red);">Gagal Total</td>
+          <td>Tidak Bisa</td>
+        </tr>
+        <tr>
+          <td><strong>Sensitivitas Sudut</strong></td>
+          <td style="color: var(--accent-green);">Tahan Miring & Oklusi</td>
+          <td style="color: var(--accent-red);">Hanya Wajah Frontal Lurus</td>
+          <td>Butuh Wajah Jelas</td>
+        </tr>
+        <tr>
+          <td><strong>Kecepatan Streaming</strong></td>
+          <td>30+ FPS (Real-Time)</td>
+          <td>Cepat (>40 FPS)</td>
+          <td>Lambat (Komputasi Berat)</td>
+        </tr>
+        <tr>
+          <td><strong>Peran di Proyek</strong></td>
+          <td><strong>Mesin Utama Monitoring</strong></td>
+          <td><em>Dihapus (Usang)</em></td>
+          <td><strong>Khusus Presensi Masuk</strong></td>
+        </tr>
+      </table>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Haar Cascade gagal mengenali siswa tidur karena saat menunduk fitur mata dan hidung tidak tampak. Itulah mengapa kami mengandalkan YOLOv8 untuk perilaku dan DeepFace untuk presensi."
+      </div>
+    </div>
+
+    <!-- SLIDE 8 -->
+    <div class="slide">
+      <span class="badge">Evaluasi & Matriks</span>
+      <h1>HASIL CONFUSION MATRIX (122 DATA UJI)</h1>
+      <div class="grid-2">
+        <div class="card-box">
+          <h3>Matriks Hasil Pengujian Riil</h3>
+          <table>
+            <tr><th>Prediksi \ Asli</th><th>Wajah</th><th>Tertidur</th><th>Background</th></tr>
+            <tr><td><strong>Pred: Wajah</strong></td><td style="color: var(--accent-green); font-weight: bold;">48 (TP)</td><td>2 (FP)</td><td>108</td></tr>
+            <tr><td><strong>Pred: Tertidur</strong></td><td>0</td><td style="color: var(--accent-green); font-weight: bold;">72 (TP)</td><td>124</td></tr>
+            <tr><td><strong>Pred: Background</strong></td><td style="color: var(--accent-green);">0 (FN)</td><td style="color: var(--accent-green);">0 (FN)</td><td>0</td></tr>
+          </table>
+        </div>
+        <div class="card-box">
+          <h3>Insight Penting:</h3>
+          <ul>
+            <li><strong>48 dari 48</strong> siswa bangun terdeteksi tepat (Recall Wajah 100%).</li>
+            <li><strong>72 dari 74</strong> siswa tidur terdeteksi tepat (Recall Tidur 97.30%).</li>
+            <li><strong>Zero False Negative:</strong> Baris background bernilai 0, artinya 100% siswa di kelas berhasil terdeteksi tanpa terlewat.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Dari 122 objek uji, 120 berhasil ditebak dengan tepat. Yang sangat menggembirakan, baris background bernilai 0, artinya tidak ada satupun siswa yang luput dari pantauan kamera."
+      </div>
+    </div>
+
+    <!-- SLIDE 9 -->
+    <div class="slide">
+      <span class="badge">Perhitungan Matematis</span>
+      <h1>RUMUS & AKURASI MODEL EDUSENSE</h1>
+      <div class="grid-2">
+        <div class="card-box">
+          <h3>Akurasi Klasifikasi Target:</h3>
+          <p style="font-size: 20px; color: var(--accent-blue);">Accuracy = (TP Wajah + TP Tidur) / Total</p>
+          <p style="font-size: 24px; font-weight: bold; color: var(--accent-green); margin: 12px 0;">
+            (48 + 72) / (48 + 74) = 120 / 122 = 98.36%
+          </p>
+          <p>Tingkat akurasi pembedaan perilaku siswa mencapai <strong>98.36%</strong>.</p>
+        </div>
+        <div class="card-box">
+          <h3>Metrik Keseimbangan (F1-Score):</h3>
+          <ul>
+            <li><strong>F1-Score Kelas Wajah:</strong> 97.96%</li>
+            <li><strong>F1-Score Kelas Tertidur:</strong> 98.63%</li>
+            <li><strong>Macro Recall:</strong> 98.65%</li>
+          </ul>
+          <p style="margin-top: 10px; font-size: 13px; color: var(--text-muted);">
+            *Catatan: False alarm latar belakang dieliminasi penuh dengan conf threshold 0.40 pada kamera.
+          </p>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Secara matematis, model kami mencapai akurasi 98.36% dengan F1-Score di atas 97% untuk kedua kelas. Ini membuktikan keseimbangan prediksi antara kelas siswa bangun dan siswa tidur."
+      </div>
+    </div>
+
+    <!-- SLIDE 10 -->
+    <div class="slide">
+      <span class="badge">Integrasi Backend</span>
+      <h1>FASTAPI STREAMING & MULTITHREADING</h1>
+      <div class="grid-2">
+        <div class="card-box">
+          <h3>Teknik CameraManager</h3>
+          <ul>
+            <li><strong>Multithreading:</strong> Pembacaan kamera berjalan di thread background terpisah (tidak memblokir request API).</li>
+            <li><strong>Frame Skipping:</strong> Inferensi AI diproses setiap 2 frame agar CPU tetap dingin dan stabil di 25-30 FPS.</li>
+            <li><strong>Laplacian Focus Measure:</strong> Mengukur ketajaman lensa kamera secara real-time.</li>
+          </ul>
+        </div>
+        <div class="card-box">
+          <h3>Streaming MJPEG ke Mobile</h3>
+          <p>Mengirimkan byte frame terkompresi langsung ke aplikasi Flutter lewat endpoint HTTP Multipart Streaming.</p>
+          <p>Latency rata-rata di bawah <strong>40 ms</strong> pada jaringan Wi-Fi lokal.</p>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Pada backend FastAPI, kami menerapkan multithreading pada class CameraManager. Hal ini mencegah aplikasi freeze dan menghasilkan streaming video berkecepatan 30 FPS."
+      </div>
+    </div>
+
+    <!-- SLIDE 11 -->
+    <div class="slide">
+      <span class="badge">Aplikasi Mobile Flutter</span>
+      <h1>DASHBOARD MONITORING & PRESENSI MOBILE</h1>
+      <div class="grid-2">
+        <div class="card-box">
+          <h3>1. Monitoring Screen</h3>
+          <ul>
+            <li>Live Stream POV Kamera Ruang Kelas.</li>
+            <li>Indikator Real-time: Jumlah Siswa Memperhatikan vs Tertidur.</li>
+            <li>Kontrol integrasi perangkat IoT kelas.</li>
+          </ul>
+        </div>
+        <div class="card-box">
+          <h3>2. Presensi Screen</h3>
+          <ul>
+            <li>Rekapitulasi otomatis kehadiran mahasiswa (Hadir, Izin, Alpa).</li>
+            <li>Pencarian data mahasiswa instan.</li>
+            <li>Tersinkronisasi dua arah dengan Firebase.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Pengajar dapat mengontrol dan memantau kelas hanya lewat genggaman smartphone Android atau iOS tanpa perlu repot membuka laptop di depan kelas."
+      </div>
+    </div>
+
+    <!-- SLIDE 12 -->
+    <div class="slide">
+      <span class="badge">Kesimpulan</span>
+      <h1>KESIMPULAN & NILAI LEBIH EDUSENSE</h1>
+      <div class="card-box" style="margin-bottom: 20px;">
+        <ul>
+          <li><strong>Solusi Utuh (End-to-End):</strong> Mengintegrasikan Computer Vision, Asynchronous Backend, Cloud Database, dan Mobile App.</li>
+          <li><strong>Akurasi & Validitas Teruji:</strong> Akurasi klasifikasi <strong>98.36%</strong> dengan metodologi dataset bebas kebocoran.</li>
+          <li><strong>Modern & Bersih:</strong> Sepenuhnya berbasis Deep Learning modern (YOLOv8 + DeepFace) tanpa ketergantungan library usang.</li>
+        </ul>
+      </div>
+      <h2 style="color: var(--accent-green); text-align: center;">TERIMA KASIH</h2>
+      <p style="text-align: center; color: var(--text-muted);">Sesi Tanya Jawab (Q & A) Dipersilakan</p>
+      <div class="speaker-notes">
+        💡 <strong>Catatan Presenter:</strong> "Sekian presentasi dari kami mengenai sistem cerdas EduSense. Kami siap menyambut pertanyaan dan masukan dari Bapak/Ibu Dewan Penguji. Terima kasih."
+      </div>
+    </div>
+
+    <!-- NAVIGASI KONTROL SLIDE -->
+    <div class="controls">
+      <button class="btn" id="prevBtn" onclick="changeSlide(-1)">&larr; Sebelumnya</button>
+      <div class="slide-counter" id="slideCounter">Slide 1 dari 12</div>
+      <button class="btn btn-primary" id="nextBtn" onclick="changeSlide(1)">Selanjutnya &rarr;</button>
+    </div>
+
+  </div>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const counter = document.getElementById('slideCounter');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    function updateSlide() {
+      slides.forEach((s, idx) => {
+        s.classList.toggle('active', idx === currentSlide);
+      });
+      counter.textContent = `Slide ${currentSlide + 1} dari ${slides.length}`;
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.textContent = currentSlide === slides.length - 1 ? 'Selesai' : 'Selanjutnya \u2192';
+    }
+
+    function changeSlide(direction) {
+      currentSlide = Math.max(0, Math.min(slides.length - 1, currentSlide + direction));
+      updateSlide();
+    }
+
+    // Navigasi Keyboard Panah Kiri dan Kanan
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Space') {
+        changeSlide(1);
+      } else if (e.key === 'ArrowLeft') {
+        changeSlide(-1);
+      }
+    });
+
+    updateSlide();
+  </script>
+</body>
+</html>

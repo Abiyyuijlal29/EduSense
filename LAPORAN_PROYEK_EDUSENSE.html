@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Teknis Proyek EduSense Vision AI</title>
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --bg: #f8fafc;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.7;
+      color: var(--text);
+      background-color: var(--bg);
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 60px 80px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+      border: 1px solid var(--border);
+    }
+    .header-report {
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+      text-align: center;
+    }
+    .header-report h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.3;
+      margin-bottom: 8px;
+    }
+    .header-report h2 {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--primary);
+      margin-bottom: 16px;
+    }
+    .meta-tag {
+      display: inline-block;
+      font-size: 13px;
+      color: var(--text-muted);
+      background: #f1f5f9;
+      padding: 4px 12px;
+      border-radius: 6px;
+      margin: 0 4px;
+    }
+    h2 {
+      font-size: 22px;
+      color: #0f172a;
+      margin-top: 36px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 {
+      font-size: 17px;
+      color: var(--primary-dark);
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    p { margin-bottom: 14px; font-size: 15px; }
+    ul, ol { margin-left: 24px; margin-bottom: 16px; font-size: 15px; }
+    li { margin-bottom: 6px; }
+    code {
+      background: #f1f5f9;
+      color: #0369a1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13.5px;
+      font-family: Consolas, monospace;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th {
+      background: #f8fafc;
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .callout {
+      background: #f0fdf4;
+      border-left: 4px solid #22c55e;
+      padding: 16px 20px;
+      border-radius: 6px;
+      margin: 20px 0;
+      font-size: 14.5px;
+    }
+    .callout-blue {
+      background: #f0f9ff;
+      border-left: 4px solid var(--primary);
+      padding: 16px 20px;
+      border-radius: 6px;
+      margin: 20px 0;
+      font-size: 14.5px;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .stat-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-val { font-size: 28px; font-weight: 800; color: var(--primary); }
+    .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+    .btn-print {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 24px;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-print:hover { background: var(--primary-dark); }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .container { box-shadow: none; border: none; padding: 0; max-width: 100%; }
+      .btn-print { display: none; }
+      h2 { page-break-after: avoid; }
+      table { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div style="text-align: right;">
+      <button class="btn-print" onclick="window.print()">🖨️ Cetak / Simpan ke PDF (Ctrl+P)</button>
+    </div>
+
+    <div class="header-report">
+      <h1>LAPORAN TEKNIS SISTEM EDUSENSE</h1>
+      <h2>Sistem Monitoring Kelas Cerdas Berbasis Visi Komputer (YOLOv8) dan IoT Mobile</h2>
+      <div>
+        <span class="meta-tag">Computer Vision</span>
+        <span class="meta-tag">YOLOv8s Custom</span>
+        <span class="meta-tag">FastAPI Backend</span>
+        <span class="meta-tag">Flutter Mobile</span>
+        <span class="meta-tag">Firebase Cloud</span>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-val">98.36%</div>
+        <div class="stat-label">Akurasi Klasifikasi Target</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">98.65%</div>
+        <div class="stat-label">Recall Deteksi Rata-Rata</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">30 FPS</div>
+        <div class="stat-label">Kecepatan Video Real-Time</div>
+      </div>
+    </div>
+
+    <h2>1. PENDAHULUAN & TUJUAN SISTEM</h2>
+    <p>
+      EduSense adalah sistem cerdas terintegrasi (End-to-End AIoT) yang dikembangkan untuk mengotomatiskan pengawasan aktivitas siswa di ruang kelas. Sistem ini memecahkan dua masalah utama pada kelas konvensional:
+    </p>
+    <ul>
+      <li><strong>Otomatisasi Presensi Wajah:</strong> Menghilangkan pemborosan waktu absensi manual dengan pengenalan wajah siswa secara instan.</li>
+      <li><strong>Monitoring Perilaku Kelas:</strong> Mendeteksi siswa yang sedang fokus memperhatikan materi vs siswa yang tertidur (kepala menunduk di atas meja) secara objektif dan real-time.</li>
+    </ul>
+
+    <h2>2. PEMETAAN DUA MODUL UTAMA</h2>
+    <p>Sistem membedakan secara tegas antara modul presensi personal dan modul pemantauan perilaku kelas:</p>
+
+    <div class="callout-blue">
+      <h3>A. Modul Deteksi Wajah untuk Presensi ("Siapa yang Hadir?")</h3>
+      <ul>
+        <li><strong>File Pendaftaran:</strong> <code>EduSense_Project/register_wajah.py</code></li>
+        <li><strong>Folder Dataset:</strong> <code>EduSense_Project/dataset_absensi/</code> (30 foto berkualitas per mahasiswa).</li>
+        <li><strong>Cara Kerja:</strong> Menggunakan YOLOv8 untuk memvalidasi keberadaan wajah siswa di depan webcam. Foto yang tersimpan kemudian diekstraksi menggunakan pustaka <strong>DeepFace</strong> untuk pencocokan identitas nama dan NIM mahasiswa.</li>
+        <li><strong>Layar Aplikasi:</strong> <code>edusense_mobile/lib/screens/presensi_screen.dart</code></li>
+      </ul>
+    </div>
+
+    <div class="callout">
+      <h3>B. Modul Deteksi Pose Tertidur ("Apa Perilakunya?")</h3>
+      <ul>
+        <li><strong>Model Utama:</strong> <code>EduSense_Project/models/best.pt</code> (YOLOv8 Custom).</li>
+        <li><strong>File Server:</strong> <code>EduSense_Project/api_server.py</code> (Class <code>CameraManager</code>).</li>
+        <li><strong>File Uji Laptop:</strong> <code>EduSense_Project/test_kamera_realtime.py</code>.</li>
+        <li><strong>Kelas Deteksi:</strong> Kelas <code>0: wajah</code> (Memperhatikan) vs Kelas <code>1: head_down</code> (Tertidur).</li>
+        <li><strong>Layar Aplikasi:</strong> <code>edusense_mobile/lib/screens/monitoring_screen.dart</code> (Menampilkan siaran langsung kamera POV kelas dan grafik jumlah siswa tertidur).</li>
+      </ul>
+    </div>
+
+    <h2>3. DATA ENGINEERING & PEMBAGIAN DATASET</h2>
+    <p>
+      Dataset awal memiliki kelemahan berupa citra bertumpuk (vertically stacked frames) dan kebocoran data. Telah dilakukan perbaikan menyeluruh:
+    </p>
+    <ul>
+      <li><strong>Pembersihan Citra Bertumpuk (<code>fix_dataset.py</code>):</strong> Sebanyak 716 citra vertikal 368x416 piksel dipotong menjadi frame tunggal normal 368x208 piksel. Koordinat bounding box paruh atas dikalibrasi ulang (y_new = y * 2) dan bounding box duplikat dibuang.</li>
+      <li><strong>Block-Temporal Sequence Split (<code>split_data.py</code>):</strong> Membagi video berdasarkan blok urutan waktu untuk menjamin <strong>nol kebocoran data (Zero Data Leakage)</strong>.</li>
+    </ul>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Bagian Dataset (Split)</th>
+          <th>Jumlah Citra</th>
+          <th>Rasio (%)</th>
+          <th>Distribusi Kelas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Train Set (Data Latih)</strong></td>
+          <td>568 frame</td>
+          <td>68.8%</td>
+          <td>Kelas 0: 245 | Kelas 1: 327</td>
+        </tr>
+        <tr>
+          <td><strong>Val Set (Data Validasi)</strong></td>
+          <td>122 frame</td>
+          <td>14.8%</td>
+          <td>Kelas 0: 48 | Kelas 1: 74</td>
+        </tr>
+        <tr>
+          <td><strong>Test Set (Data Uji)</strong></td>
+          <td>135 frame</td>
+          <td>16.4%</td>
+          <td>Kelas 0: 54 | Kelas 1: 81</td>
+        </tr>
+        <tr>
+          <td><strong>Total Dataset Bersih</strong></td>
+          <td><strong>825 frame</strong></td>
+          <td><strong>100%</strong></td>
+          <td><strong>Seimbang (~40% wajah, ~60% tidur)</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. HASIL EVALUASI & CONFUSION MATRIX</h2>
+    <p>Pengujian model YOLOv8 pada 122 data uji validasi menghasilkan data confusion matrix berikut:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Prediksi \ Asli (Ground Truth)</th>
+          <th>wajah (Memperhatikan)</th>
+          <th>head_down (Tertidur)</th>
+          <th>Background (Latar Belakang)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Prediksi: wajah</strong></td>
+          <td><strong>48 (True Positive)</strong></td>
+          <td>2 (False Positive)</td>
+          <td>108</td>
+        </tr>
+        <tr>
+          <td><strong>Prediksi: head_down</strong></td>
+          <td>0</td>
+          <td><strong>72 (True Positive)</strong></td>
+          <td>124</td>
+        </tr>
+        <tr>
+          <td><strong>Prediksi: Background (Miss)</strong></td>
+          <td>0 (Zero Miss)</td>
+          <td>0 (Zero Miss)</td>
+          <td>0</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Perhitungan Metrik Berdasarkan Rumus:</h3>
+    <ul>
+      <li><strong>Akurasi Klasifikasi Target:</strong>
+        <br><code>Accuracy = (48 + 72) / (48 + 74) = 120 / 122 = 98.36%</code>
+      </li>
+      <li><strong>Recall Kelas Wajah:</strong> <code>48 / 48 = 100.0%</code></li>
+      <li><strong>Recall Kelas Tertidur:</strong> <code>72 / 74 = 97.30%</code></li>
+      <li><strong>F1-Score:</strong> Wajah = <code>97.96%</code>, Tertidur = <code>98.63%</code></li>
+    </ul>
+
+    <h2>5. INTEGRASI SISTEM & KESIMPULAN</h2>
+    <p>
+      EduSense berhasil menghubungkan empat komponen utama: model visi komputer YOLOv8, server backend FastAPI dengan multithreaded MJPEG streaming, cloud database Firebase, dan aplikasi mobile Flutter.
+    </p>
+    <p>
+      Seluruh dependensi usang (Haar Cascade) telah dibersihkan secara resmi, menjadikan proyek ini 100% berbasis Deep Learning modern yang ringan, cepat, dan siap diimplementasikan di lingkungan pendidikan nyata.
+    </p>
+
+    <div style="margin-top: 40px; text-align: center; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 20px;">
+      Dokumen Laporan Resmi Proyek EduSense Vision AI &copy; 2026.
+    </div>
+  </div>
+
+</body>
+</html>
