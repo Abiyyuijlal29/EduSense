@@ -26,7 +26,8 @@ __pycache__/
 *.7z
 
 # 4. Folder Hasil Percobaan & Tangkapan Layar Webcam
-EduSense_Project/hasil_percobaan_kamera/screenshot_*.jpg
+dataset/raw/hasil_percobaan_kamera/screenshot_*.jpg
+hasil_percobaan_kamera/screenshot_*.jpg
 
 # 5. Output Pelatihan YOLO & Checkpoint Sementara
 runs/
@@ -34,17 +35,19 @@ runs/
 last.pt
 
 # 6. Flutter & Dart (Mobile App)
+frontend/.dart_tool/
+frontend/build/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.pub-cache/
+frontend/.pub/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/ios/.symlinks/
+frontend/ios/Pods/
+frontend/ios/Podfile.lock
 edusense_mobile/.dart_tool/
 edusense_mobile/build/
-edusense_mobile/.flutter-plugins
-edusense_mobile/.flutter-plugins-dependencies
-edusense_mobile/.pub-cache/
-edusense_mobile/.pub/
-edusense_mobile/android/.gradle/
-edusense_mobile/android/local.properties
-edusense_mobile/ios/.symlinks/
-edusense_mobile/ios/Pods/
-edusense_mobile/ios/Podfile.lock
 
 # 7. File Konfigurasi Editor / IDE & OS
 .vscode/
