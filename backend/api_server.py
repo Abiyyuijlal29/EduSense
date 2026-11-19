@@ -4,8 +4,9 @@ import base64
 import threading
 import time
 import numpy as np
-from typing import Optional
-from fastapi import FastAPI, Request, HTTPException, Depends
+from contextlib import asynccontextmanager
+from typing import Any
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,6 +20,13 @@ from schemas.schemas import (
     DataDosen
 )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    camera_manager.start()
+    yield
+    camera_manager.stop()
+
+
 app = FastAPI(
     title="EduSense AI Detection & Security API",
     description=(
@@ -27,7 +35,8 @@ app = FastAPI(
         "- **Pydantic Input Validation**: Validasi tipe data, format teks, dan batas nilai.\n"
         "- **Firebase Realtime Database**: Terhubung dengan Firebase Security Rules."
     ),
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 # Mengizinkan CORS agar aplikasi Mobile (Flutter) dapat mengakses API
@@ -45,7 +54,8 @@ MODEL_CUSTOM = os.path.join(BASE_DIR, "models", "best.pt")
 
 # Pengecekan ketersediaan library ultralytics
 try:
-    from ultralytics import YOLO
+    from ultralytics import YOLO as YOLOClass
+    YOLO: Any = YOLOClass
     ULTRALYTICS_AVAILABLE = True
 except ImportError:
     ULTRALYTICS_AVAILABLE = False
@@ -54,7 +64,7 @@ except ImportError:
 model = None
 nama_model_aktif = "Simulasi / Mock (Ultralytics belum diinstal via pip)"
 
-if ULTRALYTICS_AVAILABLE:
+if ULTRALYTICS_AVAILABLE and YOLO is not None:
     if os.path.exists(MODEL_CUSTOM):
         print(f"[INIT] Berhasil memuat model custom tersimpan dari: {MODEL_CUSTOM}")
         model = YOLO(MODEL_CUSTOM)
@@ -240,7 +250,7 @@ class CameraManager:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
 
             # Render HUD header
-            h, w, _ = bbox_frame.shape
+            _, w, _ = bbox_frame.shape
             overlay = bbox_frame.copy()
             cv2.rectangle(overlay, (0, 0), (w, 35), (20, 24, 33), -1)
             cv2.addWeighted(overlay, 0.7, bbox_frame, 0.3, 0, bbox_frame)
@@ -257,12 +267,6 @@ class CameraManager:
             time.sleep(0.01)
 
 camera_manager = CameraManager()
-
-
-@app.on_event("startup")
-def startup_event():
-    """Otomatis aktifkan streaming CCTV saat API server mulai."""
-    camera_manager.start()
 
 
 def proses_deteksi(image: np.ndarray, nama_file: str = "input_image.jpg"):
@@ -349,11 +353,6 @@ def root():
 def login_dosen(req: LoginRequest):
     """
     ENDPOINT LOGIN DOSEN (Menggunakan Validasi Pydantic & Menghasilkan JWT Token).
-    
-    1. Input diverifikasi oleh skema Pydantic `LoginRequest` (anti karakter berbahaya).
-    2. Kredensial divalidasi.
-    3. Jika valid -> server membuat **JWT Access Token** yang ditandatangani secara kriptografis.
-    4. Klien menyimpan token ini dan menggunakannya untuk mengakses endpoint lainnya.
     """
     user = req.username_atau_email
     pwd = req.password
@@ -422,7 +421,6 @@ async def deteksi_siswa_json(
 ):
     """
     ENDPOINT INFERENSI GAMBAR (Metode JSON).
-    Dilindungi JWT Token & Validasi Input Pydantic (anti directory traversal).
     """
     image = None
     nama_file = "upload.jpg"
@@ -464,9 +462,8 @@ async def deteksi_siswa_json(
 
 
 # ==============================================================================
-# ENDPOINT PRESENSI & IOT SMART CLASSROOM (PROTECTED DENGAN JWT)
+# ENDPOINT PRESENSI & IOT SMART CLASSROOM
 # ==============================================================================
-# Database Presensi Mahasiswa Terdaftar
 data_presensi_mahasiswa = [
     {
         "nim": "E41241919",
@@ -498,7 +495,6 @@ data_presensi_mahasiswa = [
     }
 ]
 
-# State Simulasi IoT Ruang Kelas
 iot_state = {
     "suhu": 28.8,
     "kelembaban": 64.0,
@@ -510,7 +506,7 @@ iot_state = {
 
 @app.get("/api/presensi", tags=["Presensi"])
 def get_presensi(current_user: dict = Depends(get_current_user)):
-    """Mengambil daftar presensi mahasiswa hari ini (Memerlukan JWT Token)."""
+    """Mengambil daftar presensi mahasiswa hari ini."""
     hadir = sum(1 for m in data_presensi_mahasiswa if m["status"] == "Hadir")
     return {
         "status": "success",
@@ -524,7 +520,7 @@ def get_presensi(current_user: dict = Depends(get_current_user)):
 
 @app.get("/api/iot/status", tags=["IoT Smart Classroom"])
 def get_iot_status(current_user: dict = Depends(get_current_user)):
-    """Membaca telemetri sensor suhu, kelembaban, dan status kipas (Memerlukan JWT Token)."""
+    """Membaca telemetri sensor suhu, kelembaban, dan status kipas."""
     return {
         "status": "success",
         "akses_oleh": current_user.get("email"),
@@ -537,10 +533,7 @@ def kontrol_kipas(
     req: IoTControlRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Mengatur mode dan kecepatan kipas dari aplikasi mobile.
-    Dilindungi JWT Token & Validasi Input Pydantic (range nilai 0-3, mode Auto/Manual).
-    """
+    """Mengatur mode dan kecepatan kipas dari aplikasi mobile."""
     iot_state["mode_kipas"] = req.mode_kipas
     iot_state["kecepatan_kipas"] = req.kecepatan_kipas
     
@@ -568,7 +561,7 @@ def kontrol_kipas(
 # ==============================================================================
 @app.get("/api/kamera/status", tags=["Kamera CCTV"])
 def get_camera_status(current_user: dict = Depends(get_current_user)):
-    """Mengambil status live streaming kamera, FPS, dan metrik deteksi (Memerlukan JWT Token)."""
+    """Mengambil status live streaming kamera, FPS, dan metrik deteksi."""
     return {
         "status": "success",
         "is_running": camera_manager.is_running,
@@ -581,7 +574,7 @@ def get_camera_status(current_user: dict = Depends(get_current_user)):
 
 @app.post("/api/kamera/start", tags=["Kamera CCTV"])
 def start_camera(current_user: dict = Depends(get_current_user)):
-    """Mengaktifkan live feed kamera laptop / CCTV (Memerlukan JWT Token)."""
+    """Mengaktifkan live feed kamera laptop / CCTV."""
     success = camera_manager.start()
     return {
         "status": "success" if success else "error",
@@ -592,20 +585,18 @@ def start_camera(current_user: dict = Depends(get_current_user)):
 
 @app.post("/api/kamera/stop", tags=["Kamera CCTV"])
 def stop_camera(current_user: dict = Depends(get_current_user)):
-    """Menghentikan live feed kamera (Memerlukan JWT Token)."""
+    """Menghentikan live feed kamera."""
     camera_manager.stop()
     return {"status": "success", "is_running": False, "pesan": "Kamera dimatikan"}
 
 
+# ENDPOINT KAMERA PUBLIK (DIPERBAIKI AGAR FLUTTER TIDAK MINTA TOKEN/LOADING LAMA)
 @app.get("/api/kamera/frame", tags=["Kamera CCTV"])
-def get_camera_frame(
-    # Mendukung Bearer token di Header atau ?token=... di URL query
-    current_user: dict = Depends(get_current_user)
-):
+def get_camera_frame():
     """
     Mengembalikan 1 frame gambar JPEG terkini dengan bounding box untuk aplikasi mobile.
-    Dilindungi JWT: Klien harus menyertakan Header Authorization: Bearer <token>
-    atau parameter ?token=<token> di URL gambar.
+    Endpoint ini dibuat publik agar widget Image.network pada Flutter dapat langsung
+    memuat feed CCTV tanpa terkendala masalah refresh token / header.
     """
     if not camera_manager.is_running:
         camera_manager.start()
@@ -623,7 +614,7 @@ def get_camera_frame(
 
 @app.get("/api/video-feed", tags=["Kamera CCTV"])
 def video_feed(current_user: dict = Depends(get_current_user)):
-    """Endpoint MJPEG Live Video Stream untuk aplikasi mobile dan browser (Memerlukan JWT Token)."""
+    """Endpoint MJPEG Live Video Stream untuk aplikasi mobile dan browser."""
     if not camera_manager.is_running:
         camera_manager.start()
 
