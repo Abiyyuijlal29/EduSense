@@ -1,0 +1,20 @@
+# ==============================================================================
+# Konfigurasi Dataset YOLOv8 EduSense (2 Kelas Perilaku Siswa)
+# ==============================================================================
+# Path root dataset:
+# - Untuk pelatihan lokal di laptop: path: dataset_yolo_tidur
+# - Untuk pelatihan di Google Colab: path: /content/dataset_yolo_tidur
+path: dataset_yolo_tidur
+
+# Sub-jalur relatif untuk gambar pelatihan, validasi, dan pengujian
+train: images/train
+val: images/val
+test: images/test
+
+# Jumlah kelas target
+nc: 2
+
+# Definisi nama kelas
+names:
+  0: wajah      # Siswa Memperhatikan (Posisi Wajah Terbuka)
+  1: head_down  # Siswa Tertidur / Menunduk di atas meja
