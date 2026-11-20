@@ -782,7 +782,11 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
 
     return Image.network(
       frameUrl,
-      headers: ApiService().authHeaders,
+      // [NGROK] header tambahan agar ngrok tidak menampilkan halaman peringatan
+      headers: <String, String>{
+        ...ApiService().authHeaders,
+        'ngrok-skip-browser-warning': 'true',
+      },
       height: 210,
       width: double.infinity,
       fit: BoxFit.cover,
