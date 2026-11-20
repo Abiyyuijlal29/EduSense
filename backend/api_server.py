@@ -203,7 +203,7 @@ class CameraManager:
 
             raw_rgb = frame.copy()
 
-            if frame_counter % FRAME_SKIP == 0 or not cached_boxes:
+            if frame_counter % FRAME_SKIP == 0:
                 current_boxes = []
                 c_wajah = 0
                 c_tidur = 0
@@ -212,7 +212,7 @@ class CameraManager:
                 # 1. Inferensi Murni YOLOv8 EduSense
                 if model is not None:
                     try:
-                        results = model.predict(raw_rgb, conf=0.40, imgsz=320, verbose=False)
+                        results = model.predict(raw_rgb, conf=0.25, imgsz=320, verbose=False)
                         for r in results:
                             for box in r.boxes:
                                 cls_id = int(box.cls[0])
@@ -233,8 +233,8 @@ class CameraManager:
 
                         if c_wajah > 0 or c_tidur > 0:
                             det_name = nama_model_aktif
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        print(f"[ERROR] Inferensi YOLO gagal: {e}")
 
                 cached_boxes = current_boxes
                 self.count_wajah = c_wajah
