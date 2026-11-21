@@ -1,0 +1,295 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import '../models/user_dosen.dart';
+import '../models/mahasiswa.dart';
+import '../models/iot_state.dart';
+import 'firebase_service.dart';
+import 'auth_service.dart';
+import 'presensi_service.dart';
+
+class ApiService {
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+  ApiService._internal();
+
+  // URL default: IP laptop di hotspot HP untuk device fisik Android
+  // Ganti IP ini sesuai hasil ipconfig saat laptop konek ke hotspot HP
+  String baseUrl = kIsWeb
+      ? 'http://127.0.0.1:8000'
+      : (defaultTargetPlatform == TargetPlatform.android
+          ? 'http://10.163.232.154:8000'
+          : 'http://127.0.0.1:8000');
+
+  UserDosen? currentUser;
+  String? authToken; // Menyimpan JWT Access Token setelah login
+  AuthService get auth => AuthService();
+  PresensiService get presensiService => PresensiService();
+
+  /// Header HTTP standar yang otomatis menyertakan Bearer Token jika sudah login
+  Map<String, String> get authHeaders => {
+        'Content-Type': 'application/json',
+        if (authToken != null && authToken!.isNotEmpty)
+          'Authorization': 'Bearer $authToken',
+      };
+
+  void updateBaseUrl(String newUrl) {
+    String cleanUrl = newUrl.trim();
+    if (cleanUrl.endsWith('/')) {
+      cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+    }
+    baseUrl = cleanUrl;
+  }
+
+  // 1. Cek Koneksi Server
+  Future<bool> checkServerHealth() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/'))
+          .timeout(const Duration(seconds: 4));
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // 2. Login Dosen
+  // Urutan: (1) Firebase Authentication + profil dari node "dosen" di Firebase,
+  //         (2) cadangan: server FastAPI (termasuk login memakai NIP).
+  Future<UserDosen> login(String username, String password) async {
+    final input = username.trim();
+
+    // [FIREBASE] sumber utama: login memakai email yang diketik
+    if (input.contains('@')) {
+      final berhasil = await FirebaseService().signIn(input, password);
+      if (berhasil) {
+        final profil = await FirebaseService().getDosen(input);
+        if (profil != null) {
+          currentUser = profil;
+          // Ambil juga JWT token dari server FastAPI jika online
+          try {
+            final apiRes = await http.post(
+              Uri.parse('$baseUrl/api/auth/login'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'username_atau_email': input, 'password': password}),
+            ).timeout(const Duration(seconds: 4));
+            if (apiRes.statusCode == 200) {
+              final d = jsonDecode(apiRes.body);
+              authToken = d['access_token'];
+            }
+          } catch (_) {}
+          return profil;
+        }
+        throw Exception(
+            'Akun berhasil login, tetapi profil dosen dengan email ini belum ada di Firebase (node dosen).');
+      }
+    }
+
+    // Cadangan: server FastAPI
+    http.Response? response;
+    try {
+      response = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'username_atau_email': input,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      response = null;
+    }
+
+    if (response == null) {
+      throw Exception(
+          'Login gagal. Periksa email/kata sandi, atau server tidak dapat dihubungi.');
+    }
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // [SECURITY] Simpan JWT Access Token untuk request selanjutnya
+      authToken = data['access_token'];
+      currentUser = UserDosen.fromJson(data['data_dosen']);
+      // [FIREBASE] login juga ke Firebase agar data bisa dibaca
+      await FirebaseService().signIn(currentUser!.email, password);
+      return currentUser!;
+    }
+
+    String pesan = 'NIP/Password salah';
+    try {
+      final data = jsonDecode(response.body);
+      pesan = (data['detail'] ?? pesan).toString();
+    } catch (_) {}
+    throw Exception(pesan);
+  }
+
+  // 3. Mengambil Data Presensi Mahasiswa
+  Future<List<MahasiswaPresensi>> getPresensi() async {
+    // [FIREBASE] sumber utama: baca langsung dari Firebase
+    final fb = await FirebaseService().getPresensi();
+    if (fb != null && fb.isNotEmpty) return fb;
+
+    // Cadangan: server FastAPI
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/presensi'),
+            headers: authHeaders,
+          )
+          .timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final list = (data['daftar_mahasiswa'] as List)
+            .map((item) => MahasiswaPresensi.fromJson(item))
+            .toList();
+        return list;
+      }
+    } catch (_) {}
+
+    // Tidak ada data di Firebase maupun server
+    return [];
+  }
+
+  // 4. Membaca Status IoT (Suhu & Kipas)
+  Future<IoTState> getIoTStatus() async {
+    // [FIREBASE] sumber utama: baca langsung dari Firebase
+    final fb = await FirebaseService().getIoTStatus();
+    if (fb != null) return fb;
+
+    // Cadangan: server FastAPI
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/iot/status'),
+            headers: authHeaders,
+          )
+          .timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return IoTState.fromJson(data['iot']);
+      }
+    } catch (_) {}
+
+    // Tidak ada data: nilai bawaan model
+    return IoTState.fromJson({});
+  }
+
+  // 5. Mengirim Perintah Kontrol Kipas ke IoT (Firebase RTDB + FastAPI Backend)
+  Future<IoTState> updateKipas(String mode, int kecepatan) async {
+    // 1. Tulis ke Firebase Realtime Database (Langsung ke ESP32)
+    IoTState? fbState;
+    try {
+      fbState =
+          await FirebaseService().updateKipas(mode, kecepatan, currentUser?.nip);
+    } catch (_) {}
+
+    // 2. Tulis juga ke server FastAPI backend agar sinkron
+    IoTState? apiState;
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/iot/kontrol-kipas'),
+            headers: authHeaders,
+            body: jsonEncode({
+              'mode_kipas': mode,
+              'kecepatan_kipas': kecepatan,
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        apiState = IoTState.fromJson(data['iot']);
+      }
+    } catch (_) {}
+
+    return fbState ??
+        apiState ??
+        IoTState(
+          suhu: 28.5,
+          kelembaban: 64.0,
+          modeKipas: mode,
+          kecepatanKipas: kecepatan,
+          statusRuangan: mode == 'Auto' ? 'Otomatis Suhu' : 'Manual Dosen',
+        );
+  }
+
+  // 6. Jalankan Deteksi Tidur Langsung (Inference)
+  Future<Map<String, dynamic>> deteksiTidur(String pathGambar) async {
+    // Inferensi gambar hanya bisa dilakukan server FastAPI
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/deteksi-tidur'),
+            headers: authHeaders,
+            body: jsonEncode({'path_gambar': pathGambar}),
+          )
+          .timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (_) {}
+
+    // [FIREBASE] jika server tidak ada, pakai ringkasan monitoring terbaru dari Firebase
+    final fb = await FirebaseService().getMonitoringRingkasan();
+    if (fb != null) return fb;
+
+    return {
+      'status': 'kosong',
+      'ringkasan': {
+        'total_terdeteksi': 0,
+        'siswa_memperhatikan': 0,
+        'siswa_tertidur': 0
+      }
+    };
+  }
+
+  // 7. Kontrol Kamera Laptop / CCTV Real-time
+  Future<Map<String, dynamic>> getCameraStatus() async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('$baseUrl/api/kamera/status'),
+            headers: authHeaders,
+          )
+          .timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (_) {}
+    return {'is_running': false, 'fps': 0.0};
+  }
+
+  Future<bool> startCamera() async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$baseUrl/api/kamera/start'),
+            headers: authHeaders,
+          )
+          .timeout(const Duration(seconds: 4));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> stopCamera() async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$baseUrl/api/kamera/stop'),
+            headers: authHeaders,
+          )
+          .timeout(const Duration(seconds: 4));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+}

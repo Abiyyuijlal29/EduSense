@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "426685620329",
+    "firebase_url": "https://classvision-iot-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "classvision-iot",
+    "storage_bucket": "classvision-iot.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:426685620329:android:1d49e806d0cdd59dc682f8",
+        "android_client_info": {
+          "package_name": "com.edusense.edusense_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjuxEZNhCyCyEvoU38DU1yheifYDMv9CI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
