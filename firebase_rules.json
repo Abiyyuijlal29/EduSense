@@ -2,18 +2,22 @@
   "/* ========================================================================== */": "ATURAN KEAMANAN FIREBASE REALTIME DATABASE (EDUSENSE)",
   "/* CARA PASANG:                                                               */": "Buka Firebase Console -> Realtime Database -> Tab 'Rules' -> Paste kode ini -> Publish",
   "/* PRINSIP: Data hanya dapat diakses oleh user yang sudah Login (auth != null).*/": "Mencegah database dibaca atau diubah oleh pihak luar yang tidak dikenal.",
+  "/* CATATAN: jika Publish menampilkan error, hapus semua baris yang diawali tanda /* lalu Publish ulang. */": "Baris-baris tersebut hanya komentar penjelas, bukan aturan.",
   "rules": {
     "dosen": {
       "/* Hanya dosen yang sudah login dapat membaca data profil dosen */": "",
       ".read": "auth != null",
       "/* Data dosen hanya boleh diubah oleh admin / service account server */": "",
-      ".write": "auth != null && auth.token.admin === true"
+      ".write": "auth != null && auth.token.admin === true",
+      "/* Index agar pencarian profil dosen berdasarkan email cepat */": "",
+      ".indexOn": ["email"]
     },
 
     "mahasiswa": {
       "/* Daftar mahasiswa hanya boleh dibaca oleh pengguna yang sudah terautentikasi */": "",
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.admin === true"
+      "/* Registrasi mahasiswa dari aplikasi menulis ke node ini */": "",
+      ".write": "auth != null"
     },
 
     "registrasi_wajah": {
@@ -50,8 +54,25 @@
     },
 
     "iot_ruangan": {
+      "/* Status ruangan: suhu, kelembaban, mode dan kecepatan kipas */": "",
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+
+    "log_kontrol_kipas": {
+      "/* Riwayat perubahan kontrol kipas (Auto/Manual) yang dicatat aplikasi */": "",
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "iot_riwayat": {
+      "/* Riwayat sensor (suhu, kelembaban, kipas) per ruangan untuk grafik */": "",
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$id_ruangan": {
+        "/* Index agar riwayat terurut berdasarkan waktu */": "",
+        ".indexOn": ["timestamp"]
+      }
     }
   }
 }
