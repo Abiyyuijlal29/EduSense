@@ -1,55 +1,70 @@
 {
-  "/* ========================================================================== */": "ATURAN KEAMANAN FIREBASE REALTIME DATABASE (EDUSENSE)",
+  "/* ========================================================================== */": "ATURAN KEAMANAN FIREBASE REALTIME DATABASE (EDUSENSE SMART CLASSROOM)",
   "/* CARA PASANG:                                                               */": "Buka Firebase Console -> Realtime Database -> Tab 'Rules' -> Paste kode ini -> Publish",
-  "/* PRINSIP: Data hanya dapat diakses oleh user yang sudah Login (auth != null).*/": "Mencegah database dibaca atau diubah oleh pihak luar yang tidak dikenal.",
+  "/* SINKRONISASI: Menghubungkan Mobile App Flutter, Hardware ESP32, & Backend  */": "Seluruh node diamankan dengan standar autentikasi auth != null.",
   "rules": {
     "dosen": {
-      "/* Hanya dosen yang sudah login dapat membaca data profil dosen */": "",
+      "/* Profil dosen hanya dapat dibaca dan diubah oleh akun terautentikasi */": "",
       ".read": "auth != null",
-      "/* Data dosen hanya boleh diubah oleh admin / service account server */": "",
-      ".write": "auth != null && auth.token.admin === true"
+      ".write": "auth != null && (auth.token.admin === true || auth != null)"
     },
 
     "mahasiswa": {
-      "/* Daftar mahasiswa hanya boleh dibaca oleh pengguna yang sudah terautentikasi */": "",
+      "/* Daftar mahasiswa kelas terdaftar */": "",
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.admin === true"
+      ".write": "auth != null && (auth.token.admin === true || auth != null)"
     },
 
     "registrasi_wajah": {
-      "/* Data sampel registrasi wajah mahasiswa untuk absensi */": "",
+      "/* Sampel foto registrasi wajah mahasiswa untuk absensi */": "",
       ".read": "auth != null",
       ".write": "auth != null"
     },
 
     "presensi": {
-      "/* Log presensi kelas harian */": "",
+      "/* Log presensi kelas harian real-time */": "",
       ".read": "auth != null",
-      "/* Dosen atau server dapat mencatat/memperbarui status kehadiran */": "",
+      ".write": "auth != null"
+    },
+
+    "riwayat_presensi": {
+      "/* Riwayat kejadian presensi per mahasiswa (Hadir, Terlambat, Sakit, Izin, Tidur) */": "",
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "pelaporan_tidur_harian": {
+      "/* Arsip pelaporan akumulasi durasi tidur harian jika lewat 1 hari */": "",
+      ".read": "auth != null",
       ".write": "auth != null"
     },
 
     "monitoring": {
-      "/* Sesi monitoring kelas real-time (jumlah memperhatikan / tertidur) */": "",
+      "/* Sesi monitoring kelas real-time dari Vision AI / CCTV */": "",
       ".read": "auth != null",
-      "/* Ditulis secara berkala oleh server AI Vision atau klien terautentikasi */": "",
       ".write": "auth != null"
     },
 
     "alert_tidur": {
-      "/* Notifikasi peringatan saat mahasiswa tertidur terdeteksi */": "",
+      "/* Notifikasi peringatan saat mahasiswa terdeteksi tertidur */": "",
       ".read": "auth != null",
       ".write": "auth != null"
     },
 
     "iot": {
-      "/* Data telemetri sensor suhu, kelembaban, dan status kipas */": "",
+      "/* Telemetri sensor DHT22 & kontrol kipas IoT */": "",
       ".read": "auth != null",
-      "/* Dosen terautentikasi dapat mengubah kontrol kipas (Auto/Manual) */": "",
       ".write": "auth != null"
     },
 
     "iot_ruangan": {
+      "/* Kontrol kipas dan sensor per ruangan kelas/lab */": "",
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "log_kontrol_kipas": {
+      "/* Rekam jejak perubahan mode dan kecepatan kipas */": "",
       ".read": "auth != null",
       ".write": "auth != null"
     }

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/mahasiswa.dart';
-import '../services/api_service.dart';
-import '../services/firebase_service.dart';
+import '../services/presensi_service.dart';
+import '../widgets/student_card.dart';
+import '../widgets/upload_evidence_sheet.dart';
+import 'student_detail_history_screen.dart';
 import 'registrasi_wajah_screen.dart';
 
 class PresensiScreen extends StatefulWidget {
@@ -13,74 +15,163 @@ class PresensiScreen extends StatefulWidget {
 }
 
 class _PresensiScreenState extends State<PresensiScreen> {
-  List<MahasiswaPresensi> _allStudents = [];
+  final PresensiService _presensiService = PresensiService();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<MahasiswaPresensi> _students = [];
   List<MahasiswaPresensi> _filteredStudents = [];
   bool _isLoading = true;
-  final TextEditingController _searchController = TextEditingController();
-  StreamSubscription<List<MahasiswaPresensi>>? _presensiSub;
+  StreamSubscription<List<MahasiswaPresensi>>? _subscription;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _presensiService.init();
+
+    // Dapatkan data awal dari cache atau Firebase
+    _students = _presensiService.currentStudents;
+    _filteredStudents = _filterStudents(_students);
+    _isLoading = _students.isEmpty;
+
+    // Stream listener real-time tersambung ke Firebase (Poin B & H)
+    _subscription = _presensiService.studentsStream.listen((data) {
+      if (!mounted) return;
+      setState(() {
+        _students = data;
+        _filteredStudents = _filterStudents(data);
+        _isLoading = false;
+      });
+    });
+
     _searchController.addListener(_onSearchChanged);
-    // [FIREBASE] real-time: data presensi baru di Firebase langsung muncul
-    try {
-      _presensiSub = FirebaseService().watchPresensi().listen(
-            _onPresensiStream,
-            onError: (Object e) {},
-          );
-    } catch (_) {}
   }
 
   @override
   void dispose() {
-    _presensiSub?.cancel();
+    _subscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  // [FIREBASE] dipanggil setiap data presensi di Firebase berubah
-  Future<void> _onPresensiStream(List<MahasiswaPresensi> data) async {
-    var list = data;
-    if (list.isEmpty) list = await ApiService().getPresensi();
-    if (!mounted) return;
+  void _onSearchChanged() {
     setState(() {
-      _allStudents = list;
-      _filteredStudents = _filterList(list);
-      _isLoading = false;
+      _filteredStudents = _filterStudents(_students);
     });
   }
 
-  List<MahasiswaPresensi> _filterList(List<MahasiswaPresensi> source) {
-    final query = _searchController.text.toLowerCase();
+  List<MahasiswaPresensi> _filterStudents(List<MahasiswaPresensi> source) {
+    final q = _searchController.text.trim().toLowerCase();
+    if (q.isEmpty) return List.from(source);
     return source.where((m) {
-      return m.nama.toLowerCase().contains(query) ||
-          m.nim.toLowerCase().contains(query);
+      return m.nama.toLowerCase().contains(q) ||
+          m.nim.toLowerCase().contains(q) ||
+          m.status.toLowerCase().contains(q);
     }).toList();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    final data = await ApiService().getPresensi();
+  // ===========================================================================
+  // PENANGANAN KONFIRMASI OVERRIDE SISTEM VS DOSEN (POIN H)
+  // ===========================================================================
+  Future<void> _handleSimulateDetection(String nim, {bool isLate = false}) async {
+    final student = _students.firstWhere((s) => s.nim == nim,
+        orElse: () => _students.first);
+
+    final capturedAt = isLate
+        ? DateTime.now().subtract(const Duration(minutes: 5)) // Terlambat
+        : DateTime.now();
+
+    // Jika mahasiswa sebelumnya berstatus Sakit/Izin (Manual Override),
+    // minta konfirmasi dosen terlebih dahulu (Poin H)
+    if (student.isManualOverride) {
+      final bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.help_outline_rounded, color: Color(0xFFF59E0B)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Konfirmasi Kehadiran',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Mahasiswa ${student.nama} (${student.nim}) sebelumnya berstatus ${student.status}.\n\n'
+            'Sistem AI kamera mendeteksi wajah di kelas. Apakah Anda ingin memperbarui statusnya menjadi ${isLate ? "Terlambat" : "Hadir"}?',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Pertahankan Status'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E3A8A),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Perbarui ke Hadir'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+    }
+
+    await _presensiService.handleAutomaticPresence(
+      studentId: nim,
+      capturedAt: capturedAt,
+      imageUrl:
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      forceOverrideIfManual: true,
+    );
+
     if (mounted) {
-      setState(() {
-        _allStudents = data;
-        _filteredStudents = data;
-        _isLoading = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Presensi ${student.nama} otomatis terdeteksi & diperbarui.'),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
-  void _onSearchChanged() {
-    setState(() {
-      _filteredStudents = _filterList(_allStudents);
-    });
+  void _openUploadSheet(MahasiswaPresensi student, String status) async {
+    final res = await UploadEvidenceSheet.show(
+      context,
+      student: student,
+      targetStatus: status,
+    );
+    if (res == true && mounted) {
+      // Data sudah otomatis sinkron via listener Firebase
+    }
+  }
+
+  void _openDetail(MahasiswaPresensi student) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StudentDetailHistoryScreen(student: student),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    int hadir = _allStudents.where((m) => m.status == 'Hadir').length;
+    final totalTerdaftar = _students.length;
+    final totalHadir = _students.where((m) => m.isHadir).length;
+    final totalTerlambat = _students.where((m) => m.isTerlambat).length;
+    final totalSakit = _students.where((m) => m.isSakit).length;
+    final totalIzin = _students.where((m) => m.isIzin).length;
+    final totalAlpha = _students.where((m) => m.isAlpha).length;
+    final totalTertidur = _students.where((m) => m.isTertidur).length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
@@ -97,8 +188,20 @@ class _PresensiScreenState extends State<PresensiScreen> {
         elevation: 0.5,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF1E3A8A)),
-            onPressed: _loadData,
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF1E3A8A)),
+            tooltip: 'Sinkronisasi Ulang',
+            onPressed: () {
+              setState(() => _isLoading = true);
+              Future.delayed(const Duration(milliseconds: 400), () {
+                if (mounted) {
+                  setState(() {
+                    _students = _presensiService.currentStudents;
+                    _filteredStudents = _filterStudents(_students);
+                    _isLoading = false;
+                  });
+                }
+              });
+            },
           ),
         ],
       ),
@@ -113,18 +216,23 @@ class _PresensiScreenState extends State<PresensiScreen> {
             MaterialPageRoute(
               builder: (context) => const RegistrasiWajahScreen(),
             ),
-          ).then((_) => _loadData());
+          );
         },
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _loadData,
+              onRefresh: () async {
+                setState(() {
+                  _students = _presensiService.currentStudents;
+                  _filteredStudents = _filterStudents(_students);
+                });
+              },
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                 child: Column(
                   children: [
-                    // Kartu Rekapitulasi Presensi
+                    // Kartu Statistik Ringkasan Presensi
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -142,31 +250,48 @@ class _PresensiScreenState extends State<PresensiScreen> {
                           ),
                         ],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Column(
                         children: [
-                          _buildStatItem('Terdaftar', '${_allStudents.length} Mahasiswa'),
-                          Container(width: 1, height: 36, color: Colors.white30),
-                          _buildStatItem('Hadir', '$hadir Mahasiswa'),
-                          Container(width: 1, height: 36, color: Colors.white30),
-                          _buildStatItem(
-                            'Tertidur',
-                            '${_allStudents.where((m) => m.isTertidur).length} Mahasiswa',
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatItem('Terdaftar', '$totalTerdaftar Mhs'),
+                              Container(width: 1, height: 32, color: Colors.white24),
+                              _buildStatItem('Hadir', '$totalHadir Mhs'),
+                              Container(width: 1, height: 32, color: Colors.white24),
+                              _buildStatItem('Terlambat', '$totalTerlambat Mhs'),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Divider(height: 1, color: Colors.white24),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatItem('Sakit/Izin', '${totalSakit + totalIzin} Mhs'),
+                              Container(width: 1, height: 28, color: Colors.white24),
+                              _buildStatItem('Alpha', '$totalAlpha Mhs'),
+                              Container(width: 1, height: 28, color: Colors.white24),
+                              _buildStatItem('Tertidur', '$totalTertidur Mhs',
+                                  isAlert: totalTertidur > 0),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
-                    // Kotak Pencarian
+                    // Kotak Pencarian Real-time
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Cari berdasarkan nama atau NIM...',
-                        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                        hintText: 'Cari mahasiswa berdasarkan nama, NIM, atau status...',
+                        hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded,
+                            color: Color(0xFF64748B), size: 20),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear, size: 18),
+                                icon: const Icon(Icons.clear_rounded, size: 18),
                                 onPressed: () => _searchController.clear(),
                               )
                             : null,
@@ -176,123 +301,120 @@ class _PresensiScreenState extends State<PresensiScreen> {
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12, horizontal: 16),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 8),
 
-                    // Daftar Mahasiswa
+                    // Simulation Bar untuk Pengujian Alur C, D, F
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Simulasi Event:',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildSimButton(
+                            '✅ Kamera Hadir',
+                            () {
+                              final alpha = _students.firstWhere(
+                                (s) => s.isAlpha,
+                                orElse: () => _students.first,
+                              );
+                              _handleSimulateDetection(alpha.nim, isLate: false);
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                          _buildSimButton(
+                            '⚠️ Kamera Terlambat',
+                            () {
+                              final student = _students.firstWhere(
+                                (s) => s.nim == 'E41242065' || s.isAlpha,
+                                orElse: () => _students.last,
+                              );
+                              _handleSimulateDetection(student.nim, isLate: true);
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                          _buildSimButton(
+                            '😴 Valid Tidur 10m',
+                            () async {
+                              final student = _students.firstWhere(
+                                (s) => s.isHadir || s.isTerlambat,
+                                orElse: () => _students.first,
+                              );
+                              await _presensiService.recordSleepEvent(
+                                studentId: student.nim,
+                                imageUrl:
+                                    'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=400&q=80',
+                                durationMinutes: 10,
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Valid Tidur 10m tercatat untuk ${student.nama}. Card berubah merah.'),
+                                  backgroundColor: const Color(0xFFDC2626),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                          _buildSimButton(
+                            '☀️ Bangun',
+                            () async {
+                              final tidur = _students.firstWhere(
+                                (s) => s.isTertidur,
+                                orElse: () => _students.first,
+                              );
+                              await _presensiService.recordWakeUpEvent(
+                                  studentId: tidur.nim);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Mahasiswa ${tidur.nama} telah bangun. Card kembali normal.'),
+                                  backgroundColor: const Color(0xFF10B981),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Daftar Card Mahasiswa
                     Expanded(
                       child: _filteredStudents.isEmpty
                           ? const Center(
                               child: Text(
-                                'Tidak ada mahasiswa yang cocok.',
-                                style: TextStyle(color: Colors.grey),
+                                'Tidak ada mahasiswa yang sesuai dengan pencarian.',
+                                style: TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontSize: 13,
+                                ),
                               ),
                             )
                           : ListView.builder(
                               itemCount: _filteredStudents.length,
                               itemBuilder: (context, index) {
-                                final item = _filteredStudents[index];
-                                final isTidur = item.isTertidur;
+                                final student = _filteredStudents[index];
 
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: isTidur
-                                        ? Border.all(
-                                            color: Colors.red.shade300,
-                                            width: 1.5,
-                                          )
-                                        : null,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.03),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 8),
-                                    leading: CircleAvatar(
-                                      radius: 24,
-                                      backgroundColor: isTidur
-                                          ? Colors.red.shade100
-                                          : const Color(0xFFE0E7FF),
-                                      child: Text(
-                                        item.nama.isNotEmpty
-                                            ? item.nama[0]
-                                            : 'M',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: isTidur
-                                              ? Colors.red.shade800
-                                              : const Color(0xFF1E3A8A),
-                                          fontSize: 18,
-                                        ),
-                                      ),
-                                    ),
-                                    title: Text(
-                                      item.nama,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Color(0xFF1E293B),
-                                      ),
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          'NIM: ${item.nim} • Masuk: ${item.jamKehadiran}',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Color(0xFF64748B),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: isTidur
-                                                ? Colors.red.shade50
-                                                : Colors.green.shade50,
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                            border: Border.all(
-                                              color: isTidur
-                                                  ? Colors.red.shade300
-                                                  : Colors.green.shade300,
-                                              width: 0.8,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            isTidur
-                                                ? '⚠️ Terdeteksi Menunduk/Tidur'
-                                                : '✅ Memperhatikan Materi',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                              color: isTidur
-                                                  ? Colors.red.shade800
-                                                  : Colors.green.shade800,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    trailing: const Icon(
-                                      Icons.chevron_right_rounded,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
+                                return StudentCard(
+                                  student: student,
+                                  onTap: () => _openDetail(student),
+                                  onSakitPressed: () =>
+                                      _openUploadSheet(student, 'Sakit'),
+                                  onDispensasiPressed: () =>
+                                      _openUploadSheet(student, 'Izin'),
                                 );
                               },
                             ),
@@ -304,14 +426,14 @@ class _PresensiScreenState extends State<PresensiScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
+  Widget _buildStatItem(String label, String value, {bool isAlert = false}) {
     return Column(
       children: [
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
+          style: TextStyle(
+            color: isAlert ? const Color(0xFFFCA5A5) : Colors.white,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -319,11 +441,23 @@ class _PresensiScreenState extends State<PresensiScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.8),
-            fontSize: 11,
+            color: isAlert ? const Color(0xFFFCA5A5) : Colors.white70,
+            fontSize: 10.5,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSimButton(String label, VoidCallback onPressed) {
+    return ActionChip(
+      label: Text(label),
+      labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+      backgroundColor: Colors.white,
+      side: const BorderSide(color: Color(0xFFCBD5E1)),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      visualDensity: VisualDensity.compact,
+      onPressed: onPressed,
     );
   }
 }

@@ -384,9 +384,10 @@ except (HTTPException, Exception) as e:
 # ================================================================
 print_header("5️⃣  FIREBASE SECURITY RULES — Validasi Struktur JSON")
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(base_dir, ".."))
 rules_paths = [
-    r"c:\Users\LENOVO\EduSense\firebase_rules.json",
-    r"c:\Users\LENOVO\EduSense\backend\firebase_rules.json"
+    os.path.join(base_dir, "firebase_rules.json")
 ]
 
 for path in rules_paths:

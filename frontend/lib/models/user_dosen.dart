@@ -5,6 +5,7 @@ class UserDosen {
   final String programStudi;
   final String mataKuliah;
   final String kelasAktif;
+  final String? fotoUrl;
 
   UserDosen({
     required this.nip,
@@ -13,6 +14,7 @@ class UserDosen {
     required this.programStudi,
     required this.mataKuliah,
     required this.kelasAktif,
+    this.fotoUrl,
   });
 
   factory UserDosen.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class UserDosen {
       programStudi: json['program_studi'] ?? '',
       mataKuliah: json['mata_kuliah'] ?? '',
       kelasAktif: json['kelas_aktif'] ?? '',
+      fotoUrl: json['foto_url'] ?? json['fotoUrl'],
     );
   }
 
@@ -34,6 +37,27 @@ class UserDosen {
       'program_studi': programStudi,
       'mata_kuliah': mataKuliah,
       'kelas_aktif': kelasAktif,
+      'foto_url': fotoUrl,
     };
+  }
+
+  UserDosen copyWith({
+    String? nip,
+    String? nama,
+    String? email,
+    String? programStudi,
+    String? mataKuliah,
+    String? kelasAktif,
+    String? fotoUrl,
+  }) {
+    return UserDosen(
+      nip: nip ?? this.nip,
+      nama: nama ?? this.nama,
+      email: email ?? this.email,
+      programStudi: programStudi ?? this.programStudi,
+      mataKuliah: mataKuliah ?? this.mataKuliah,
+      kelasAktif: kelasAktif ?? this.kelasAktif,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
+    );
   }
 }

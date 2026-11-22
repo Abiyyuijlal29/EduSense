@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/forgot_password_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +34,12 @@ class EduSenseApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF4F6F9),
         fontFamily: 'Roboto',
       ),
-      home: const LoginScreen(),
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
+      },
     );
   }
 }
