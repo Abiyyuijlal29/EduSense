@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../models/user_dosen.dart';
 import '../models/iot_state.dart';
 import '../models/mahasiswa.dart';
@@ -667,10 +669,11 @@ class _LiveCctvFeed extends StatefulWidget {
 }
 
 class _LiveCctvFeedState extends State<_LiveCctvFeed> {
-  Timer? _streamTimer;
-  int _timestamp = DateTime.now().millisecondsSinceEpoch;
+  final http.Client _httpClient = http.Client();
+  Uint8List? _latestFrame;
   bool _hasFeedError = false;
   String? _feedErrorMessage;
+  bool _isPolling = false;
 
   @override
   void initState() {
@@ -679,15 +682,51 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
   }
 
   void _startStreamPolling() {
-    _streamTimer?.cancel();
-    // Refresh frame setiap 120ms (~8-10 FPS live snapshot yang stabil di HTTP)
-    _streamTimer = Timer.periodic(const Duration(milliseconds: 120), (_) {
-      if (mounted && widget.isOnline && !_hasFeedError) {
+    if (_isPolling || !widget.isOnline || _hasFeedError) return;
+    _isPolling = true;
+    unawaited(_pollFrames());
+  }
+
+  Future<void> _pollFrames() async {
+    try {
+      while (mounted && widget.isOnline && !_hasFeedError) {
+        final frameUri = Uri.parse('${ApiService().baseUrl}/api/kamera/frame')
+            .replace(
+              queryParameters: {
+                't': DateTime.now().millisecondsSinceEpoch.toString(),
+              },
+            );
+        final response = await _httpClient
+            .get(
+              frameUri,
+              headers: {
+                ...ApiService().authHeaders,
+                'ngrok-skip-browser-warning': 'true',
+              },
+            )
+            .timeout(const Duration(seconds: 4));
+
+        if (response.statusCode != 200 ||
+            response.headers['content-type']?.startsWith('image/') != true) {
+          throw StateError(
+            'Frame kamera gagal dimuat (HTTP ${response.statusCode}).',
+          );
+        }
+
+        if (!mounted) return;
+        setState(() => _latestFrame = response.bodyBytes);
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+      }
+    } catch (error) {
+      if (mounted) {
         setState(() {
-          _timestamp = DateTime.now().millisecondsSinceEpoch;
+          _hasFeedError = true;
+          _feedErrorMessage = error.toString();
         });
       }
-    });
+    } finally {
+      _isPolling = false;
+    }
   }
 
   @override
@@ -697,27 +736,15 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
       if (widget.isOnline) {
         _hasFeedError = false;
         _feedErrorMessage = null;
+        _latestFrame = null;
         _startStreamPolling();
       }
     }
   }
 
-  void _handleFeedError(Object error) {
-    if (_hasFeedError) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _hasFeedError) return;
-      _streamTimer?.cancel();
-      setState(() {
-        _hasFeedError = true;
-        _feedErrorMessage = error.toString();
-      });
-    });
-  }
-
   @override
   void dispose() {
-    _streamTimer?.cancel();
+    _httpClient.close();
     super.dispose();
   }
 
@@ -770,7 +797,9 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.isOnline || _hasFeedError) {
+    if (!widget.isOnline || _hasFeedError || _latestFrame == null) {
+      final isLoading =
+          widget.isOnline && !_hasFeedError && _latestFrame == null;
       return InkWell(
         onTap: _hasFeedError ? () => _showServerDialog(context) : null,
         child: Container(
@@ -781,16 +810,28 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  widget.isOnline
-                      ? Icons.videocam_off_outlined
-                      : Icons.wifi_off_rounded,
-                  size: 44,
-                  color: Colors.white.withValues(alpha: 0.35),
-                ),
+                if (isLoading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.blueAccent,
+                    ),
+                  )
+                else
+                  Icon(
+                    widget.isOnline
+                        ? Icons.videocam_off_outlined
+                        : Icons.wifi_off_rounded,
+                    size: 44,
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
                 const SizedBox(height: 8),
                 Text(
-                  widget.isOnline
+                  isLoading
+                      ? 'Menghubungkan Stream Kamera CCTV...'
+                      : widget.isOnline
                       ? 'Kamera Belum Aktif di Server'
                       : 'Server CCTV Belum Terhubung',
                   style: TextStyle(
@@ -853,80 +894,12 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
       );
     }
 
-    final token = ApiService().authToken;
-    final tokenParam = (token != null && token.isNotEmpty)
-        ? '&token=$token'
-        : '';
-    final frameUrl =
-        '${ApiService().baseUrl}/api/kamera/frame?t=$_timestamp$tokenParam';
-
-    return Image.network(
-      frameUrl,
-      headers: ApiService().authHeaders,
+    return Image.memory(
+      _latestFrame!,
       height: 210,
       width: double.infinity,
       fit: BoxFit.cover,
       gaplessPlayback: true,
-      errorBuilder: (context, error, stackTrace) {
-        _handleFeedError(error);
-        return InkWell(
-          onTap: () => _showServerDialog(context),
-          child: Container(
-            height: 210,
-            width: double.infinity,
-            color: const Color(0xFF0F172A),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.blueAccent,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Menghubungkan Stream Kamera CCTV...',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    ApiService().baseUrl,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 10,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blueAccent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.blueAccent.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    child: const Text(
-                      'Ketuk untuk Ubah IP Server',
-                      style: TextStyle(
-                        color: Colors.lightBlueAccent,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }
