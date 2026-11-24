@@ -842,7 +842,7 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
                     ),
                     label: const Text(
                       'Hubungkan Ulang',
-                      style: TextStyle(fontSize: 11, color: Colors.blueAccent),
+                       style: TextStyle(fontSize: 11, color: Colors.blueAccent),
                     ),
                   ),
                 ],
