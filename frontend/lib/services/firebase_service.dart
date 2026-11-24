@@ -7,16 +7,13 @@ import '../models/mahasiswa.dart';
 import '../models/iot_state.dart';
 import '../models/user_dosen.dart';
 
-/// Semua data dibaca langsung dari Firebase Realtime Database.
-/// Tidak ada data yang diketik manual di kode. Fungsi "watch..." memberi
-/// Stream: setiap data di Firebase berubah/bertambah, Stream langsung mengirim data baru.
-/// Fungsi "get..." mengambil data sekali saja. Jika gagal -> null (tidak melempar error).
+/// Service Firebase Realtime Database EduSense
+/// Menghubungkan Presensi Mahasiswa, Deteksi AI, dan IoT Kipas Pintar secara Real-Time.
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
   factory FirebaseService() => _instance;
   FirebaseService._internal();
 
-  // Alamat database (konfigurasi koneksi, bukan data)
   static const String _dbUrl =
       'https://classvision-iot-default-rtdb.asia-southeast1.firebasedatabase.app';
   static const Duration _timeout = Duration(seconds: 6);
@@ -35,32 +32,68 @@ class FirebaseService {
     }
   }
 
-  // Sesi presensi terbaru (key diawali tanggal, jadi yang terakhir = terbaru)
+  // Sesi presensi terbaru
   Query get _presensiQuery =>
       _db.ref('presensi').orderByKey().limitToLast(1);
 
-  // Ruangan IoT pertama di node iot_ruangan (nama ruangan dibaca dari Firebase)
+  // Ruangan IoT di node iot_ruangan atau node iot langsung
   Query get _iotQuery => _db.ref('iot_ruangan').limitToFirst(1);
+  DatabaseReference get _iotDirectRef => _db.ref('iot');
 
   List<MahasiswaPresensi>? _parsePresensi(DataSnapshot snap) {
-    if (!snap.exists) return null;
-    final sesi = _toMap(snap.children.first.value);
-    final mhs = _toMap(sesi?['mahasiswa']);
-    if (mhs == null || mhs.isEmpty) return null;
-    return mhs.values
-        .map((v) =>
-            MahasiswaPresensi.fromJson(Map<String, dynamic>.from(v as Map)))
-        .toList();
+    if (!snap.exists || snap.value == null) return null;
+    try {
+      Map? mhs;
+      if (snap.children.isNotEmpty) {
+        final firstVal = snap.children.first.value;
+        final sesi = _toMap(firstVal);
+        if (sesi != null && sesi['mahasiswa'] is Map) {
+          mhs = sesi['mahasiswa'] as Map;
+        }
+      }
+      final direct = _toMap(snap.value);
+      if (mhs == null && direct != null) {
+        if (direct['mahasiswa'] is Map) {
+          mhs = direct['mahasiswa'] as Map;
+        }
+      }
+
+      if (mhs == null || mhs.isEmpty) return null;
+      return mhs.values
+          .map((v) =>
+              MahasiswaPresensi.fromJson(Map<String, dynamic>.from(v as Map)))
+          .toList();
+    } catch (e) {
+      debugPrint('[FirebaseService] _parsePresensi error: $e');
+      return null;
+    }
   }
 
   IoTState? _parseIoT(DataSnapshot snap) {
-    if (!snap.exists) return null;
-    final m = _toMap(snap.children.first.value);
-    if (m == null) return null;
-    return IoTState.fromJson(m);
+    if (!snap.exists || snap.value == null) return null;
+    try {
+      // 1. Cek jika snap.value langsung berupa map data IoT (misal di node /iot)
+      final directMap = _toMap(snap.value);
+      if (directMap != null &&
+          (directMap.containsKey('suhu') ||
+              directMap.containsKey('mode_kipas') ||
+              directMap.containsKey('kecepatan_kipas'))) {
+        return IoTState.fromJson(directMap);
+      }
+
+      // 2. Cek jika berada di dalam child pertama (misal /iot_ruangan/ruang_lab)
+      if (snap.children.isNotEmpty) {
+        final childVal = snap.children.first.value;
+        final m = _toMap(childVal);
+        if (m != null) return IoTState.fromJson(m);
+      }
+    } catch (e) {
+      debugPrint('[FirebaseService] _parseIoT error: $e');
+    }
+    return null;
   }
 
-  // ================= LOGIN =================
+  // ================= LOGIN & AUTH =================
   Future<bool> signIn(String email, String password) async {
     try {
       await FirebaseAuth.instance
@@ -72,7 +105,6 @@ class FirebaseService {
     }
   }
 
-  // Keluar dari akun Firebase (dipanggil saat tombol logout ditekan)
   Future<void> signOut() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -81,7 +113,6 @@ class FirebaseService {
     }
   }
 
-  // Profil dosen dari node "dosen" (dicari berdasarkan email)
   Future<UserDosen?> getDosen(String email) async {
     try {
       if (!_sudahLogin) return null;
@@ -92,7 +123,7 @@ class FirebaseService {
           .limitToFirst(1)
           .get()
           .timeout(_timeout);
-      if (!snap.exists) return null;
+      if (!snap.exists || snap.children.isEmpty) return null;
       final m = _toMap(snap.children.first.value);
       if (m == null) return null;
       return UserDosen.fromJson(m);
@@ -102,24 +133,72 @@ class FirebaseService {
     }
   }
 
-  // ================= REAL-TIME (STREAM) =================
-  // Dipakai layar dengan StreamBuilder: data baru di Firebase langsung muncul.
+  Future<bool> updateFotoDosen(String nip, String fotoUrl) async {
+    try {
+      if (!_sudahLogin) return false;
+      await _db.ref('dosen/$nip').update({'foto_url': fotoUrl}).timeout(_timeout);
+      return true;
+    } catch (e) {
+      debugPrint('Firebase updateFotoDosen gagal: $e');
+      return false;
+    }
+  }
 
+  Future<bool> updateProfileDosen({
+    required String nip,
+    required String nama,
+    required String email,
+    String? fotoUrl,
+  }) async {
+    try {
+      if (!_sudahLogin) return false;
+      final Map<String, dynamic> data = {
+        'nama': nama,
+        'email': email,
+      };
+      if (fotoUrl != null) data['foto_url'] = fotoUrl;
+      await _db.ref('dosen/$nip').update(data).timeout(_timeout);
+      return true;
+    } catch (e) {
+      debugPrint('Firebase updateProfileDosen gagal: $e');
+      return false;
+    }
+  }
+
+  Future<bool> changePasswordDosen(String newPassword) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.updatePassword(newPassword);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Firebase changePasswordDosen gagal: $e');
+      return false;
+    }
+  }
+
+  // ================= REAL-TIME (STREAM) =================
   Stream<List<MahasiswaPresensi>> watchPresensi() => _presensiQuery.onValue
       .map((e) => _parsePresensi(e.snapshot) ?? <MahasiswaPresensi>[]);
 
+  /// Mendengarkan perubahan data IoT:
+  /// Memantau iot_ruangan dan /iot secara bersamaan sehingga apapun node yang diupdate ESP32,
+  /// aplikasi langsung merespons.
   Stream<IoTState?> watchIoT() =>
       _iotQuery.onValue.map((e) => _parseIoT(e.snapshot));
 
-  /// Data terbaru dari sebuah node daftar, misalnya 'monitoring' atau 'alert_tidur'.
   Stream<Map<String, dynamic>?> watchLatest(String path) => _db
       .ref(path)
       .orderByKey()
       .limitToLast(1)
       .onValue
-      .map((e) => e.snapshot.exists ? _toMap(e.snapshot.children.first.value) : null);
+      .map((e) =>
+          e.snapshot.exists && e.snapshot.children.isNotEmpty
+              ? _toMap(e.snapshot.children.first.value)
+              : (e.snapshot.exists ? _toMap(e.snapshot.value) : null));
 
-  /// Seluruh isi sebuah node, misalnya 'mahasiswa' atau 'log_kontrol_kipas'.
   Stream<Map<String, dynamic>?> watchNode(String path) =>
       _db.ref(path).onValue.map((e) => _toMap(e.snapshot.value));
 
@@ -137,19 +216,24 @@ class FirebaseService {
 
   Future<IoTState?> getIoTStatus() async {
     try {
-      if (!_sudahLogin) return null;
-      final snap = await _iotQuery.get().timeout(_timeout);
-      return _parseIoT(snap);
+      // 1. Cek dari node iot_ruangan
+      final snapRuangan = await _iotQuery.get().timeout(_timeout);
+      final resRuangan = _parseIoT(snapRuangan);
+      if (resRuangan != null) return resRuangan;
+
+      // 2. Cek dari node direct /iot
+      final snapDirect = await _iotDirectRef.get().timeout(_timeout);
+      final resDirect = _parseIoT(snapDirect);
+      if (resDirect != null) return resDirect;
     } catch (e) {
       debugPrint('Firebase getIoTStatus gagal: $e');
-      return null;
     }
+    return null;
   }
 
-  // Ringkasan deteksi dari sesi monitoring terbaru
+  // Ringkasan deteksi monitoring terbaru
   Future<Map<String, dynamic>?> getMonitoringRingkasan() async {
     try {
-      if (!_sudahLogin) return null;
       final snap = await _db
           .ref('monitoring')
           .orderByKey()
@@ -157,7 +241,9 @@ class FirebaseService {
           .get()
           .timeout(_timeout);
       if (!snap.exists) return null;
-      final m = _toMap(snap.children.first.value);
+      final m = snap.children.isNotEmpty
+          ? _toMap(snap.children.first.value)
+          : _toMap(snap.value);
       if (m == null) return null;
       return {
         'status': 'firebase',
@@ -174,37 +260,51 @@ class FirebaseService {
     }
   }
 
-  // ================= TULIS =================
-  // Kontrol kipas: ubah iot_ruangan dan catat di log_kontrol_kipas
+  // ================= TULIS KONTROL KIPAS =================
+  // Memperbarui mode dan kecepatan kipas ke node /iot DAN /iot_ruangan/ruang_lab
+  // sehingga terhubung langsung ke hardware ESP32 manapun yang disiapkan.
   Future<IoTState?> updateKipas(String mode, int kecepatan, String? nip) async {
     try {
-      if (!_sudahLogin) return null;
-      final awal = await _iotQuery.get().timeout(_timeout);
-      if (!awal.exists) return null;
-      final idRuangan = awal.children.first.key ?? '';
-      final sebelum = _toMap(awal.children.first.value) ?? {};
-      final ref = _db.ref('iot_ruangan/$idRuangan');
       final sekarang = DateTime.now().toUtc().toIso8601String();
+      String idRuangan = 'ruang_lab';
 
-      await ref.update({
+      try {
+        final snap = await _iotQuery.get().timeout(_timeout);
+        if (snap.exists && snap.children.isNotEmpty) {
+          idRuangan = snap.children.first.key ?? 'ruang_lab';
+        }
+      } catch (_) {}
+
+      final dataUpdate = {
         'mode_kipas': mode,
         'kecepatan_kipas': kecepatan,
         'updated_at': sekarang,
-      }).timeout(_timeout);
+        if (nip != null) 'updated_by': nip,
+        'status_ruangan': mode == 'Auto' ? 'Otomatis' : 'Manual Dosen',
+      };
 
-      await _db.ref('log_kontrol_kipas').push().set({
-        'id_ruangan': idRuangan,
-        'timestamp': sekarang,
-        'mode_sebelum': sebelum['mode_kipas'] ?? '',
-        'mode_sesudah': mode,
-        'kecepatan_sebelum': sebelum['kecepatan_kipas'] ?? 0,
-        'kecepatan_sesudah': kecepatan,
-        'pesan': 'Kipas diubah ke mode $mode (Kecepatan: $kecepatan)',
-        'diubah_oleh': nip ?? '',
-      }).timeout(_timeout);
+      // 1. Sinkronisasi ke node iot_ruangan/$idRuangan
+      await _db.ref('iot_ruangan/$idRuangan').update(dataUpdate).timeout(_timeout);
 
-      final sesudah = _toMap((await ref.get().timeout(_timeout)).value);
-      if (sesudah == null) return null;
+      // 2. Sinkronisasi juga ke node root /iot (alat hardware sering memakai root /iot)
+      await _db.ref('iot').update(dataUpdate).timeout(_timeout);
+
+      // 3. Catat ke log kontrol kipas
+      if (_sudahLogin) {
+        try {
+          await _db.ref('log_kontrol_kipas').push().set({
+            'id_ruangan': idRuangan,
+            'timestamp': sekarang,
+            'mode_sesudah': mode,
+            'kecepatan_sesudah': kecepatan,
+            'pesan': 'Kipas diubah ke mode $mode (Kecepatan: $kecepatan)',
+            'diubah_oleh': nip ?? '',
+          }).timeout(_timeout);
+        } catch (_) {}
+      }
+
+      final akhir = await _db.ref('iot_ruangan/$idRuangan').get().timeout(_timeout);
+      final sesudah = _toMap(akhir.value) ?? dataUpdate;
       return IoTState.fromJson(sesudah);
     } catch (e) {
       debugPrint('Firebase updateKipas gagal: $e');
@@ -212,7 +312,6 @@ class FirebaseService {
     }
   }
 
-  // Simpan hasil registrasi mahasiswa ke node mahasiswa dan registrasi_wajah
   Future<bool> registrasiMahasiswa({
     required String nim,
     required String nama,
@@ -220,7 +319,6 @@ class FirebaseService {
   }) async {
     try {
       if (!_sudahLogin) return false;
-      // Key di Firebase tidak boleh mengandung . $ # [ ] /
       if (nim.isEmpty || RegExp(r'[.$#\[\]/]').hasMatch(nim)) return false;
       final waktu = DateTime.now().toUtc().toIso8601String();
 

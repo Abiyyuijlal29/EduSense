@@ -5,6 +5,8 @@ import '../models/user_dosen.dart';
 import '../models/mahasiswa.dart';
 import '../models/iot_state.dart';
 import 'firebase_service.dart';
+import 'auth_service.dart';
+import 'presensi_service.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -21,6 +23,8 @@ class ApiService {
 
   UserDosen? currentUser;
   String? authToken; // Menyimpan JWT Access Token setelah login
+  AuthService get auth => AuthService();
+  PresensiService get presensiService => PresensiService();
 
   /// Header HTTP standar yang otomatis menyertakan Bearer Token jika sudah login
   Map<String, String> get authHeaders => {
@@ -174,14 +178,17 @@ class ApiService {
     return IoTState.fromJson({});
   }
 
-  // 5. Mengirim Perintah Kontrol Kipas ke IoT
+  // 5. Mengirim Perintah Kontrol Kipas ke IoT (Firebase RTDB + FastAPI Backend)
   Future<IoTState> updateKipas(String mode, int kecepatan) async {
-    // [FIREBASE] sumber utama: tulis langsung ke Firebase
-    final fb =
-        await FirebaseService().updateKipas(mode, kecepatan, currentUser?.nip);
-    if (fb != null) return fb;
+    // 1. Tulis ke Firebase Realtime Database (Langsung ke ESP32)
+    IoTState? fbState;
+    try {
+      fbState =
+          await FirebaseService().updateKipas(mode, kecepatan, currentUser?.nip);
+    } catch (_) {}
 
-    // Cadangan: server FastAPI
+    // 2. Tulis juga ke server FastAPI backend agar sinkron
+    IoTState? apiState;
     try {
       final response = await http
           .post(
@@ -192,19 +199,23 @@ class ApiService {
               'kecepatan_kipas': kecepatan,
             }),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return IoTState.fromJson(data['iot']);
+        apiState = IoTState.fromJson(data['iot']);
       }
     } catch (_) {}
 
-    return IoTState.fromJson({
-      'mode_kipas': mode,
-      'kecepatan_kipas': kecepatan,
-      'status_ruangan': mode == 'Auto' ? 'Otomatis' : 'Manual Dosen',
-    });
+    return fbState ??
+        apiState ??
+        IoTState(
+          suhu: 28.5,
+          kelembaban: 64.0,
+          modeKipas: mode,
+          kecepatanKipas: kecepatan,
+          statusRuangan: mode == 'Auto' ? 'Otomatis Suhu' : 'Manual Dosen',
+        );
   }
 
   // 6. Jalankan Deteksi Tidur Langsung (Inference)

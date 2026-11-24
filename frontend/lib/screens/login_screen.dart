@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'main_navigation_screen.dart';
+import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,17 +18,31 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   void _login() async {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorMessage = 'Harap masukkan NIP/Email dan Kata Sandi Anda.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final user = await ApiService().login(
-        _usernameController.text.trim(),
-        _passwordController.text.trim(),
-      );
+      final user = await ApiService().login(username, password);
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -36,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
@@ -49,8 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showServerSettings() {
-    final urlController =
-        TextEditingController(text: ApiService().baseUrl);
+    final urlController = TextEditingController(text: ApiService().baseUrl);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -125,8 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               // Logo / Header Icon
               Container(
-                width: 90,
-                height: 90,
+                width: 86,
+                height: 86,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
@@ -144,18 +160,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: const Icon(
                   Icons.school_rounded,
-                  size: 48,
+                  size: 46,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Title
               const Text(
                 'EduSense',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 30,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.5,
                   color: Color(0xFF1E293B),
@@ -166,12 +182,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Smart Classroom AI & IoT Monitoring System\nPoliteknik Negeri Jember',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12.5,
                   color: Color(0xFF64748B),
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
               // Card Form
               Container(
@@ -205,9 +221,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Username Field
+                    // Username / Email Field
                     TextField(
                       controller: _usernameController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
                       decoration: InputDecoration(
                         labelText: 'NIP atau Email',
                         prefixIcon: const Icon(Icons.person_outline),
@@ -225,6 +243,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _login(),
                       decoration: InputDecoration(
                         labelText: 'Kata Sandi',
                         prefixIcon: const Icon(Icons.lock_outline),
@@ -248,8 +268,37 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
 
+                    // Link Lupa Password
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF2563EB),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 0, vertical: 8),
+                        ),
+                        child: const Text(
+                          'Lupa password?',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Error Message Banner
                     if (_errorMessage != null)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -260,6 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           border: Border.all(color: Colors.red.shade200),
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(Icons.error_outline,
                                 color: Colors.red.shade700, size: 20),
@@ -284,7 +334,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         backgroundColor: const Color(0xFF1E3A8A),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         elevation: 2,
                       ),
                       child: _isLoading
@@ -306,6 +357,40 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Link ke Halaman Registrasi
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Belum punya akun?',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 14,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RegisterScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Daftar di sini',
+                      style: TextStyle(
+                        color: Color(0xFF1E3A8A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 20),
