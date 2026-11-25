@@ -690,12 +690,9 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
   Future<void> _pollFrames() async {
     try {
       while (mounted && widget.isOnline && !_hasFeedError) {
-        final frameUri = Uri.parse('${ApiService().baseUrl}/api/kamera/frame')
-            .replace(
-              queryParameters: {
-                't': DateTime.now().millisecondsSinceEpoch.toString(),
-              },
-            );
+        final frameUri = Uri.parse(
+          '${ApiService().baseUrl}/api/kamera/frame',
+        );
         final response = await _httpClient
             .get(
               frameUri,
@@ -715,7 +712,7 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
 
         if (!mounted) return;
         setState(() => _latestFrame = response.bodyBytes);
-        await Future<void>.delayed(const Duration(milliseconds: 40));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
       }
     } catch (error) {
       if (mounted) {
