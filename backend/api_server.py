@@ -21,6 +21,7 @@ if BASE_DIR not in sys.path:
 
 # Import Modul Keamanan (JWT) & Skema Validasi Input (Pydantic)
 from security.auth import create_access_token, get_current_user, security_bearer, verify_token
+from face_recognizer_manual import face_recognizer
 from schemas.schemas import (
     LoginRequest,
     TokenResponse,
@@ -315,8 +316,12 @@ camera_manager = CameraManager()
 
 @app.on_event("startup")
 def startup_event():
-    """Otomatis aktifkan streaming CCTV saat API server mulai."""
+    """Otomatis aktifkan streaming CCTV dan bangun database wajah manual saat API server mulai."""
     camera_manager.start()
+    try:
+        face_recognizer.bangun_database_mahasiswa()
+    except Exception as e:
+        print(f"[FACE_RECOG] Gagal inisialisasi database wajah: {e}")
 
 
 @app.on_event("shutdown")
@@ -805,6 +810,145 @@ def get_presensi(current_user: dict = Depends(get_current_user)):
         "jumlah_hadir": hadir,
         "jumlah_absen": len(data_presensi_mahasiswa) - hadir,
         "daftar_mahasiswa": data_presensi_mahasiswa
+    }
+
+
+@app.post("/api/presensi/scan-kamera", tags=["Presensi"])
+def scan_presensi_kamera(current_user: dict = Depends(get_current_user)):
+    """
+    Memindai wajah mahasiswa langsung dari live feed kamera CCTV/laptop saat ini
+    menggunakan model MobileFaceNet ONNX + komputasi Aljabar Linier manual (NumPy).
+    Jika wajah cocok (Cosine Sim >= 0.40), status mahasiswa otomatis diubah menjadi
+    'Hadir' dan disinkronkan ke Firebase Realtime Database.
+    """
+    if not camera_manager.is_running:
+        camera_manager.start()
+
+    frame = None
+    if camera_manager.cap is not None and camera_manager.cap.isOpened():
+        ret, frame = camera_manager.cap.read()
+
+    if frame is None and camera_manager.latest_frame_bytes is not None:
+        nparr = np.frombuffer(camera_manager.latest_frame_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    if frame is None:
+        raise HTTPException(status_code=503, detail="Frame kamera belum siap atau tidak tersedia.")
+
+    hasil = face_recognizer.kenali_wajah(frame, threshold_cosine=0.40, auto_crop=True)
+
+    if not hasil["dikenal"]:
+        return {
+            "status": "unrecognized",
+            "pesan": "Wajah di depan kamera tidak cocok dengan database mahasiswa terdaftar.",
+            "detail": hasil
+        }
+
+    nim_dikenal = hasil["nim"]
+    sekarang_str = time.strftime("%H:%M WIB")
+
+    target_mhs = None
+    for m in data_presensi_mahasiswa:
+        if m["nim"] == nim_dikenal:
+            m["status"] = "Hadir"
+            m["jam_kehadiran"] = sekarang_str
+            m["jam_kejadian_terakhir"] = sekarang_str
+            m["aktivitas_terakhir"] = "Memperhatikan"
+            target_mhs = m
+            break
+
+    # Sinkronisasi ke Firebase RTDB
+    if target_mhs:
+        sync_to_firebase(f"presensi/mahasiswa/{nim_dikenal}", target_mhs)
+        sync_to_firebase(f"riwayat_presensi/{nim_dikenal}", {
+            "nim": nim_dikenal,
+            "nama": target_mhs["nama"],
+            "status": "Hadir",
+            "timestamp": int(time.time()),
+            "jam": sekarang_str,
+            "metode": "MobileFaceNet ONNX (Manual Math)"
+        })
+
+    return {
+        "status": "success",
+        "pesan": f"Presensi berhasil dicatat untuk {hasil['nama']} ({nim_dikenal})!",
+        "mahasiswa": target_mhs,
+        "metrik_kemiripan": {
+            "cosine_similarity": hasil["cosine_sim"],
+            "euclidean_distance": hasil["euclidean_dist"]
+        }
+    }
+
+
+@app.post("/api/presensi/scan-foto", tags=["Presensi"])
+def scan_presensi_foto(
+    req: DeteksiRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Memindai wajah mahasiswa dari file foto path atau Base64 yang diunggah
+    menggunakan model MobileFaceNet ONNX + komputasi Aljabar Linier manual (NumPy).
+    """
+    image = None
+    if req.path_gambar:
+        full_path = req.path_gambar
+        if not os.path.isabs(full_path):
+            candidates = [
+                os.path.join(BASE_DIR, req.path_gambar),
+                os.path.join(PROJECT_ROOT, req.path_gambar),
+                os.path.join(PROJECT_ROOT, "dataset", "dataset_absensi", req.path_gambar),
+                os.path.join(PROJECT_ROOT, "EduSense_Project", "dataset_absensi", req.path_gambar),
+            ]
+            for c in candidates:
+                if os.path.exists(c):
+                    full_path = c
+                    break
+        if not os.path.exists(full_path):
+            raise HTTPException(status_code=404, detail=f"File gambar tidak ditemukan: {req.path_gambar}")
+        image = cv2.imread(full_path)
+    elif req.gambar_base64:
+        try:
+            img_bytes = base64.b64decode(req.gambar_base64)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Format Base64 gambar tidak valid.")
+
+    if image is None:
+        raise HTTPException(status_code=400, detail="Gambar tidak valid atau gagal didekode.")
+
+    hasil = face_recognizer.kenali_wajah(image, threshold_cosine=0.40, auto_crop=True)
+
+    if not hasil["dikenal"]:
+        return {
+            "status": "unrecognized",
+            "pesan": "Wajah pada foto tidak cocok dengan database mahasiswa terdaftar.",
+            "detail": hasil
+        }
+
+    nim_dikenal = hasil["nim"]
+    sekarang_str = time.strftime("%H:%M WIB")
+
+    target_mhs = None
+    for m in data_presensi_mahasiswa:
+        if m["nim"] == nim_dikenal:
+            m["status"] = "Hadir"
+            m["jam_kehadiran"] = sekarang_str
+            m["jam_kejadian_terakhir"] = sekarang_str
+            target_mhs = m
+            break
+
+    if target_mhs:
+        sync_to_firebase(f"presensi/mahasiswa/{nim_dikenal}", target_mhs)
+
+    return {
+        "status": "success",
+        "pesan": f"Presensi berhasil dicatat untuk {hasil['nama']} ({nim_dikenal})!",
+        "mahasiswa": target_mhs,
+        "metrik_kemiripan": {
+            "cosine_similarity": hasil["cosine_sim"],
+            "euclidean_distance": hasil["euclidean_dist"]
+        }
     }
 
 
