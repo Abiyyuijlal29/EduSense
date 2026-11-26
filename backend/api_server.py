@@ -79,6 +79,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=600,
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -196,6 +197,7 @@ class CameraManager:
         FRAME_SKIP = 2
         cached_boxes = []
         fail_count = 0
+        last_inference_error = None
 
         while self.is_running:
             if not self.is_simulation and self.cap and self.cap.isOpened():
@@ -265,8 +267,12 @@ class CameraManager:
 
                         if c_wajah > 0 or c_tidur > 0:
                             det_name = nama_model_aktif
-                    except Exception:
-                        pass
+                        last_inference_error = None
+                    except Exception as e:
+                        error_message = f"{type(e).__name__}: {e}"
+                        if error_message != last_inference_error:
+                            print(f"[ERROR] Inferensi YOLO live gagal: {error_message}")
+                            last_inference_error = error_message
 
                 cached_boxes = current_boxes
                 self.count_wajah = c_wajah
@@ -1133,7 +1139,11 @@ def get_camera_frame(
         time.sleep(0.05)
 
     if camera_manager.latest_frame_bytes is not None:
-        return Response(content=camera_manager.latest_frame_bytes, media_type="image/jpeg")
+        return Response(
+            content=camera_manager.latest_frame_bytes,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-store"},
+        )
 
     raise HTTPException(status_code=503, detail="Kamera belum siap atau tidak tersedia.")
 

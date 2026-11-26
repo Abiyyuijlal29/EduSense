@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../models/user_dosen.dart';
 import '../models/iot_state.dart';
 import '../models/mahasiswa.dart';
@@ -61,33 +63,26 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
 
     // [FIREBASE] real-time: perubahan di Firebase langsung muncul tanpa menunggu timer
     try {
-      _monitoringSub = FirebaseService().watchLatest('monitoring').listen(
-        (data) {
-          if (!mounted) return;
-          setState(() => _monitoring = data);
-        },
-        onError: (Object e) {},
-      );
-      _iotSub = FirebaseService().watchIoT().listen(
-        (data) {
-          if (!mounted || data == null) return;
-          setState(() {
-            _iotState = data;
-            _isLoading = false;
-          });
-        },
-        onError: (Object e) {},
-      );
-      _presensiSub = FirebaseService().watchPresensi().listen(
-        (data) {
-          if (!mounted || data.isEmpty) return;
-          setState(() {
-            _presensiList = data;
-            _isLoading = false;
-          });
-        },
-        onError: (Object e) {},
-      );
+      _monitoringSub = FirebaseService().watchLatest('monitoring').listen((
+        data,
+      ) {
+        if (!mounted) return;
+        setState(() => _monitoring = data);
+      }, onError: (Object e) {});
+      _iotSub = FirebaseService().watchIoT().listen((data) {
+        if (!mounted || data == null) return;
+        setState(() {
+          _iotState = data;
+          _isLoading = false;
+        });
+      }, onError: (Object e) {});
+      _presensiSub = FirebaseService().watchPresensi().listen((data) {
+        if (!mounted || data.isEmpty) return;
+        setState(() {
+          _presensiList = data;
+          _isLoading = false;
+        });
+      }, onError: (Object e) {});
     } catch (_) {}
   }
 
@@ -136,7 +131,8 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     for (int i = 0; i < list.length && i < _slots.length; i++) {
       final d = list[i];
       final status = (d['status'] ?? '').toString().toLowerCase();
-      final sleeping = (d['label'] ?? '').toString() == 'head_down' ||
+      final sleeping =
+          (d['label'] ?? '').toString() == 'head_down' ||
           status.contains('tidur') ||
           status.contains('menunduk');
       final nama = (d['nama'] ?? '').toString();
@@ -272,8 +268,11 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning_amber_rounded,
-                                color: Colors.white, size: 28),
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -290,7 +289,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                   Text(
                                     '$siswaTidur mahasiswa terdeteksi menunduk / tertidur saat sesi materi.',
                                     style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.9),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -322,7 +323,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                           // Header Stream
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
                             color: const Color(0xFF1E293B),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -371,7 +374,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                           // Stream Bottom bar
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             color: const Color(0xFF1E293B),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -379,7 +384,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                 Text(
                                   'Resolusi: $resolusi @ ${fps}fps',
                                   style: const TextStyle(
-                                      color: Colors.white70, fontSize: 11),
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                  ),
                                 ),
                                 TextButton.icon(
                                   style: TextButton.styleFrom(
@@ -392,14 +399,17 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                            'Menjalankan inferensi YOLOv8 ke API...'),
+                                          'Menjalankan inferensi YOLOv8 ke API...',
+                                        ),
                                         duration: Duration(seconds: 1),
                                       ),
                                     );
                                     final res = await ApiService().deteksiTidur(
-                                        'dataset_cctv_tersaring/cctv_0150.jpg');
+                                      'dataset_cctv_tersaring/cctv_0150.jpg',
+                                    );
                                     final int tidur = (res['ringkasan'] is Map)
-                                        ? (res['ringkasan']['siswa_tertidur'] ?? 0)
+                                        ? (res['ringkasan']['siswa_tertidur'] ??
+                                              0)
                                         : 0;
                                     if (tidur > 0) {
                                       // Sinkronkan langsung ke presensi mahasiswa
@@ -412,12 +422,17 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                                     }
                                     _refreshData();
                                   },
-                                  icon: const Icon(Icons.refresh,
-                                      size: 14, color: Colors.blueAccent),
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    size: 14,
+                                    color: Colors.blueAccent,
+                                  ),
                                   label: const Text(
                                     'Uji Inferensi',
                                     style: TextStyle(
-                                        color: Colors.blueAccent, fontSize: 11),
+                                      color: Colors.blueAccent,
+                                      fontSize: 11,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -505,8 +520,11 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                               color: Colors.orange.shade50,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.thermostat_outlined,
-                                color: Colors.orange, size: 32),
+                            child: const Icon(
+                              Icons.thermostat_outlined,
+                              color: Colors.orange,
+                              size: 32,
+                            ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -534,7 +552,9 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.blue.shade50,
                               borderRadius: BorderRadius.circular(8),
@@ -630,10 +650,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           const SizedBox(height: 4),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF64748B),
-            ),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
           ),
         ],
       ),
@@ -652,9 +669,11 @@ class _LiveCctvFeed extends StatefulWidget {
 }
 
 class _LiveCctvFeedState extends State<_LiveCctvFeed> {
-  Timer? _streamTimer;
-  int _timestamp = DateTime.now().millisecondsSinceEpoch;
+  final http.Client _httpClient = http.Client();
+  Uint8List? _latestFrame;
   bool _hasFeedError = false;
+  String? _feedErrorMessage;
+  bool _isPolling = false;
 
   @override
   void initState() {
@@ -663,15 +682,48 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
   }
 
   void _startStreamPolling() {
-    _streamTimer?.cancel();
-    // Refresh frame setiap 120ms (~8-10 FPS live snapshot yang stabil di HTTP)
-    _streamTimer = Timer.periodic(const Duration(milliseconds: 120), (_) {
-      if (mounted && widget.isOnline && !_hasFeedError) {
+    if (_isPolling || !widget.isOnline || _hasFeedError) return;
+    _isPolling = true;
+    unawaited(_pollFrames());
+  }
+
+  Future<void> _pollFrames() async {
+    try {
+      while (mounted && widget.isOnline && !_hasFeedError) {
+        final frameUri = Uri.parse(
+          '${ApiService().baseUrl}/api/kamera/frame',
+        );
+        final response = await _httpClient
+            .get(
+              frameUri,
+              headers: {
+                ...ApiService().authHeaders,
+                'ngrok-skip-browser-warning': 'true',
+              },
+            )
+            .timeout(const Duration(seconds: 4));
+
+        if (response.statusCode != 200 ||
+            response.headers['content-type']?.startsWith('image/') != true) {
+          throw StateError(
+            'Frame kamera gagal dimuat (HTTP ${response.statusCode}).',
+          );
+        }
+
+        if (!mounted) return;
+        setState(() => _latestFrame = response.bodyBytes);
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+      }
+    } catch (error) {
+      if (mounted) {
         setState(() {
-          _timestamp = DateTime.now().millisecondsSinceEpoch;
+          _hasFeedError = true;
+          _feedErrorMessage = error.toString();
         });
       }
-    });
+    } finally {
+      _isPolling = false;
+    }
   }
 
   @override
@@ -680,6 +732,8 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
     if (widget.isOnline != oldWidget.isOnline) {
       if (widget.isOnline) {
         _hasFeedError = false;
+        _feedErrorMessage = null;
+        _latestFrame = null;
         _startStreamPolling();
       }
     }
@@ -687,7 +741,7 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
 
   @override
   void dispose() {
-    _streamTimer?.cancel();
+    _httpClient.close();
     super.dispose();
   }
 
@@ -740,88 +794,20 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.isOnline || _hasFeedError) {
-      return Container(
-        height: 210,
-        width: double.infinity,
-        color: const Color(0xFF0F172A),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                widget.isOnline
-                    ? Icons.videocam_off_outlined
-                    : Icons.wifi_off_rounded,
-                size: 44,
-                color: Colors.white.withValues(alpha: 0.35),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.isOnline
-                    ? 'Kamera Belum Aktif di Server'
-                    : 'Server CCTV Belum Terhubung',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Alamat: ${ApiService().baseUrl}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 11,
-                ),
-              ),
-              if (_hasFeedError) ...[
-                const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E293B),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  ),
-                  onPressed: () {
-                    setState(() => _hasFeedError = false);
-                    _startStreamPolling();
-                  },
-                  icon: const Icon(Icons.refresh,
-                      size: 14, color: Colors.blueAccent),
-                  label: const Text('Hubungkan Ulang',
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.blueAccent)),
-                )
-              ]
-            ],
-          ),
-        ),
-      );
-    }
-
-    final token = ApiService().authToken;
-    final tokenParam = (token != null && token.isNotEmpty) ? '&token=$token' : '';
-    final frameUrl = '${ApiService().baseUrl}/api/kamera/frame?t=$_timestamp$tokenParam';
-
-    return Image.network(
-      frameUrl,
-      headers: ApiService().authHeaders,
-      height: 210,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      gaplessPlayback: true,
-      errorBuilder: (context, error, stackTrace) {
-        return InkWell(
-          onTap: () => _showServerDialog(context),
-          child: Container(
-            height: 210,
-            width: double.infinity,
-            color: const Color(0xFF0F172A),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+    if (!widget.isOnline || _hasFeedError || _latestFrame == null) {
+      final isLoading =
+          widget.isOnline && !_hasFeedError && _latestFrame == null;
+      return InkWell(
+        onTap: _hasFeedError ? () => _showServerDialog(context) : null,
+        child: Container(
+          height: 210,
+          width: double.infinity,
+          color: const Color(0xFF0F172A),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isLoading)
                   const SizedBox(
                     width: 24,
                     height: 24,
@@ -829,37 +815,88 @@ class _LiveCctvFeedState extends State<_LiveCctvFeed> {
                       strokeWidth: 2,
                       color: Colors.blueAccent,
                     ),
+                  )
+                else
+                  Icon(
+                    widget.isOnline
+                        ? Icons.videocam_off_outlined
+                        : Icons.wifi_off_rounded,
+                    size: 44,
+                    color: Colors.white.withValues(alpha: 0.35),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Menghubungkan Stream Kamera CCTV...',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                const SizedBox(height: 8),
+                Text(
+                  isLoading
+                      ? 'Menghubungkan Stream Kamera CCTV...'
+                      : widget.isOnline
+                      ? 'Kamera Belum Aktif di Server'
+                      : 'Server CCTV Belum Terhubung',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
+                if (_feedErrorMessage != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    ApiService().baseUrl,
+                    _feedErrorMessage!,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4), fontSize: 10),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blueAccent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.4)),
-                    ),
-                    child: const Text(
-                      'Ketuk untuk Ubah IP Server',
-                      style: TextStyle(color: Colors.lightBlueAccent, fontSize: 10),
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 10,
                     ),
                   ),
                 ],
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  'Alamat: ${ApiService().baseUrl}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 11,
+                  ),
+                ),
+                if (_hasFeedError) ...[
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E293B),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _hasFeedError = false;
+                        _feedErrorMessage = null;
+                      });
+                      _startStreamPolling();
+                    },
+                    icon: const Icon(
+                      Icons.refresh,
+                      size: 14,
+                      color: Colors.blueAccent,
+                    ),
+                    label: const Text(
+                      'Hubungkan Ulang',
+                      style: TextStyle(fontSize: 11, color: Colors.blueAccent),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-        );
-      },
+        ),
+      );
+    }
+
+    return Image.memory(
+      _latestFrame!,
+      height: 210,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
     );
   }
 }
