@@ -2,13 +2,18 @@ import os
 import sys
 import cv2
 import base64
+import logging
+import secrets
+import smtplib
 import threading
 import time
 import json
 import urllib.request
 import numpy as np
 from contextlib import asynccontextmanager
+from email.message import EmailMessage
 from typing import Optional
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException, Depends, Query
 from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +21,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 
 # Pastikan folder backend masuk ke sys.path agar modul security & schemas selalu ditemukan
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, ".env"), override=False)
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
@@ -38,6 +44,7 @@ from schemas.schemas import (
 )
 
 FIREBASE_RTDB_URL = "https://classvision-iot-default-rtdb.asia-southeast1.firebasedatabase.app"
+FIREBASE_PROJECT_ID = "classvision-iot"
 
 def sync_to_firebase(path: str, data: dict):
     """
@@ -88,15 +95,15 @@ MODEL_CUSTOM = os.path.join(BASE_DIR, "models", "best.pt")
 # Pengecekan ketersediaan library ultralytics
 try:
     from ultralytics import YOLO
-    ULTRALYTICS_AVAILABLE = True
+    from ultralytics.engine.results import Results
 except ImportError:
-    ULTRALYTICS_AVAILABLE = False
     YOLO = None
+    Results = None
 
 model = None
 nama_model_aktif = "Simulasi / Mock (Ultralytics belum diinstal via pip)"
 
-if ULTRALYTICS_AVAILABLE:
+if YOLO is not None:
     if os.path.exists(MODEL_CUSTOM):
         print(f"[INIT] Berhasil memuat model custom tersimpan dari: {MODEL_CUSTOM}")
         model = YOLO(MODEL_CUSTOM)
@@ -245,8 +252,14 @@ class CameraManager:
                 # 1. Inferensi Murni YOLOv8 EduSense
                 if model is not None:
                     try:
+                        if Results is None:
+                            raise RuntimeError("Tipe hasil YOLO tidak tersedia.")
                         results = model.predict(raw_rgb, conf=0.40, imgsz=320, verbose=False)
                         for r in results:
+                            if not isinstance(r, Results):
+                                raise TypeError("YOLO menghasilkan format deteksi yang tidak dikenal.")
+                            if r.boxes is None:
+                                continue
                             for box in r.boxes:
                                 cls_id = int(box.cls[0])
                                 conf = float(box.conf[0])
@@ -338,8 +351,14 @@ def proses_deteksi(image: np.ndarray, nama_file: str = "input_image.jpg"):
     jumlah_tidur = 0
 
     if model is not None:
+        if Results is None:
+            raise RuntimeError("Tipe hasil YOLO tidak tersedia.")
         results = model.predict(image, conf=0.35, verbose=False)
         for r in results:
+            if not isinstance(r, Results):
+                raise TypeError("YOLO menghasilkan format deteksi yang tidak dikenal.")
+            if r.boxes is None:
+                continue
             for box in r.boxes:
                 cls_id = int(box.cls[0])
                 conf = float(box.conf[0])
@@ -483,6 +502,130 @@ DB_DOSEN_TEMP = {}
 DB_OTP_STORE = {}
 
 
+def send_otp_email(
+    email: str,
+    otp_code: str,
+    purpose: str = "email_verification"
+) -> None:
+    """Kirim OTP melalui SMTP; konfigurasi email dibaca dari environment."""
+    host = os.getenv("SMTP_HOST")
+    username = os.getenv("SMTP_USERNAME")
+    password = "".join(os.getenv("SMTP_PASSWORD", "").split())
+    sender = os.getenv("SMTP_FROM_EMAIL", username or "")
+    if not host or not username or not password or not sender:
+        raise HTTPException(
+            status_code=503,
+            detail="Layanan email belum dikonfigurasi. Hubungi administrator.",
+        )
+
+    try:
+        port = int(os.getenv("SMTP_PORT", "587"))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Konfigurasi layanan email tidak valid.",
+        ) from exc
+
+    message = EmailMessage()
+    is_password_reset = purpose == "password_reset"
+    message["Subject"] = (
+        "Kode OTP Pemulihan Kata Sandi EduSense"
+        if is_password_reset
+        else "Kode Verifikasi Email EduSense"
+    )
+    message["From"] = sender
+    message["To"] = email
+    message.set_content(
+        f"Kode OTP {'pemulihan kata sandi' if is_password_reset else 'verifikasi akun'} "
+        f"EduSense Anda adalah: {otp_code}\n\n"
+        "Kode ini berlaku selama 5 menit. Jangan bagikan kode ini kepada siapa pun."
+    )
+
+    try:
+        if os.getenv("SMTP_USE_SSL", "").lower() == "true":
+            with smtplib.SMTP_SSL(host, port, timeout=15) as smtp:
+                smtp.login(username, password)
+                smtp.send_message(message)
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as smtp:
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.ehlo()
+                smtp.login(username, password)
+                smtp.send_message(message)
+    except (OSError, smtplib.SMTPException) as exc:
+        logging.exception("Gagal mengirim email OTP ke %s", email)
+        raise HTTPException(
+            status_code=503,
+            detail="Email OTP gagal dikirim. Silakan coba lagi nanti.",
+        ) from exc
+
+
+def update_firebase_auth_password(email: str, new_password: str) -> None:
+    """Update password Firebase Authentication via Firebase Admin credentials."""
+    try:
+        import firebase_admin
+        from firebase_admin import auth as admin_auth
+        from firebase_admin import credentials
+        from firebase_admin.exceptions import FirebaseError
+        from google.auth.exceptions import DefaultCredentialsError
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Firebase Admin SDK belum terpasang di backend.",
+        ) from exc
+
+    try:
+        service_account_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if service_account_path:
+            credential = credentials.Certificate(service_account_path)
+            if credential.project_id != FIREBASE_PROJECT_ID:
+                raise ValueError(
+                    "Firebase service account tidak cocok dengan project aplikasi."
+                )
+        else:
+            credential = credentials.ApplicationDefault()
+
+        try:
+            app = firebase_admin.get_app()
+        except ValueError:
+            app = firebase_admin.initialize_app(
+                credential,
+                {
+                    "databaseURL": FIREBASE_RTDB_URL,
+                    "projectId": FIREBASE_PROJECT_ID,
+                },
+            )
+
+        if app.project_id != FIREBASE_PROJECT_ID:
+            raise ValueError(
+                "Firebase Admin terhubung ke project yang berbeda dengan aplikasi."
+            )
+
+        user = admin_auth.get_user_by_email(email, app=app)
+        admin_auth.update_user(user.uid, password=new_password, app=app)
+    except admin_auth.UserNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Akun Firebase untuk email ini tidak ditemukan.",
+        ) from exc
+    except DefaultCredentialsError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Firebase Admin belum dikonfigurasi. Isi "
+                "GOOGLE_APPLICATION_CREDENTIALS di backend/.env dengan "
+                "service account proyek Firebase aplikasi."
+            ),
+        ) from exc
+    except (FirebaseError, OSError, ValueError) as exc:
+        logging.exception("Gagal memperbarui kata sandi Firebase untuk %s", email)
+        raise HTTPException(
+            status_code=503,
+            detail="Gagal memperbarui kata sandi Firebase. Periksa konfigurasi Firebase Admin.",
+        ) from exc
+
+
 @app.post("/api/auth/register", tags=["Autentikasi"])
 def register_dosen(req: RegisterDosenRequest):
     """
@@ -492,8 +635,10 @@ def register_dosen(req: RegisterDosenRequest):
     - Password kuat sesuai aturan poin 8
     """
     email_key = req.email.strip().lower()
-    
-    # Simpan data sementara
+
+    otp_code = f"{secrets.randbelow(1_000_000):06d}"
+    send_otp_email(email_key, otp_code)
+
     DB_DOSEN_TEMP[email_key] = {
         "nama": req.nama.strip(),
         "nip": req.nip.strip(),
@@ -502,23 +647,17 @@ def register_dosen(req: RegisterDosenRequest):
         "verified": False,
         "registered_at": time.time()
     }
-    
-    # Generate OTP 6 Digit
-    otp_code = "123456"  # Default demo code, atau random 6 digit
     DB_OTP_STORE[email_key] = {
         "otp": otp_code,
         "type": "email_verification",
         "created_at": time.time(),
         "expires_at": time.time() + 300  # Aktif 5 menit
     }
-    
-    print(f"📧 [OTP SENT] Kode OTP untuk {email_key} adalah: {otp_code}")
-    
+
     return {
         "status": "success",
         "pesan": f"Pendaftaran berhasil! Kode OTP 6 digit telah dikirim ke {email_key}.",
         "email": email_key,
-        "demo_otp": otp_code
     }
 
 
@@ -529,16 +668,14 @@ def verify_email_otp(req: VerifyOtpRequest):
     """
     email_key = req.email.strip().lower()
     otp_info = DB_OTP_STORE.get(email_key)
-    
-    # Izinkan default demo code 123456 atau OTP yang tercatat
-    if not otp_info and req.otp != "123456":
+
+    if not otp_info or otp_info.get("type") != "email_verification":
         raise HTTPException(status_code=400, detail="Kode OTP tidak ditemukan atau telah kedaluwarsa.")
         
-    if otp_info:
-        if time.time() > otp_info["expires_at"]:
-            raise HTTPException(status_code=400, detail="Kode OTP telah kedaluwarsa. Silakan kirim ulang kode.")
-        if req.otp != otp_info["otp"] and req.otp != "123456":
-            raise HTTPException(status_code=400, detail="Kode OTP yang Anda masukkan salah.")
+    if time.time() > otp_info["expires_at"]:
+        raise HTTPException(status_code=400, detail="Kode OTP telah kedaluwarsa. Silakan kirim ulang kode.")
+    if req.otp != otp_info["otp"]:
+        raise HTTPException(status_code=400, detail="Kode OTP yang Anda masukkan salah.")
             
     # Tandai user telah terverifikasi
     if email_key in DB_DOSEN_TEMP:
@@ -556,19 +693,19 @@ def resend_email_otp(req: ResendOtpRequest):
     ENDPOINT KIRIM ULANG KODE OTP EMAIL (Countdown 60 Detik).
     """
     email_key = req.email.strip().lower()
-    otp_code = "123456"
+    otp_code = f"{secrets.randbelow(1_000_000):06d}"
+    send_otp_email(email_key, otp_code)
+
     DB_OTP_STORE[email_key] = {
         "otp": otp_code,
         "type": "email_verification",
         "created_at": time.time(),
         "expires_at": time.time() + 300
     }
-    
-    print(f"📧 [OTP RESENT] Kode OTP baru untuk {email_key} adalah: {otp_code}")
+
     return {
         "status": "success",
         "pesan": f"Kode OTP baru telah dikirimkan ke {email_key}.",
-        "demo_otp": otp_code
     }
 
 
@@ -578,19 +715,19 @@ def forgot_password_request(req: ForgotPasswordRequest):
     ENDPOINT LUPA PASSWORD - LANGKAH 1 (Kirim kode verifikasi ke email).
     """
     email_key = req.email.strip().lower()
-    otp_code = "123456"
+    otp_code = f"{secrets.randbelow(1_000_000):06d}"
+    send_otp_email(email_key, otp_code, purpose="password_reset")
+
     DB_OTP_STORE[email_key] = {
         "otp": otp_code,
         "type": "password_reset",
         "created_at": time.time(),
         "expires_at": time.time() + 300
     }
-    
-    print(f"🔑 [RESET OTP] Kode verifikasi reset password untuk {email_key} adalah: {otp_code}")
+
     return {
         "status": "success",
         "pesan": f"Kode verifikasi pemulihan sandi telah dikirim ke {email_key}.",
-        "demo_otp": otp_code
     }
 
 
@@ -601,14 +738,15 @@ def verify_reset_otp(req: VerifyOtpRequest):
     """
     email_key = req.email.strip().lower()
     otp_info = DB_OTP_STORE.get(email_key)
-    
-    if not otp_info and req.otp != "123456":
+
+    if not otp_info or otp_info.get("type") != "password_reset":
         raise HTTPException(status_code=400, detail="Kode OTP tidak ditemukan atau telah kedaluwarsa.")
-        
-    if otp_info:
-        if req.otp != otp_info["otp"] and req.otp != "123456":
-            raise HTTPException(status_code=400, detail="Kode OTP salah.")
-            
+
+    if time.time() > otp_info["expires_at"]:
+        raise HTTPException(status_code=400, detail="Kode OTP telah kedaluwarsa. Silakan kirim ulang kode.")
+    if req.otp != otp_info["otp"]:
+        raise HTTPException(status_code=400, detail="Kode OTP salah.")
+
     return {
         "status": "success",
         "pesan": "Kode OTP valid. Silakan buat kata sandi baru.",
@@ -622,11 +760,21 @@ def reset_password(req: ResetPasswordRequest):
     ENDPOINT LUPA PASSWORD - LANGKAH 3 (Simpan kata sandi baru dengan aturan poin 8).
     """
     email_key = req.email.strip().lower()
-    
+
+    otp_info = DB_OTP_STORE.get(email_key)
+    if not otp_info or otp_info.get("type") != "password_reset":
+        raise HTTPException(status_code=400, detail="Kode OTP tidak ditemukan atau telah kedaluwarsa.")
+    if time.time() > otp_info["expires_at"]:
+        raise HTTPException(status_code=400, detail="Kode OTP telah kedaluwarsa. Silakan kirim ulang kode.")
+    if req.otp != otp_info["otp"]:
+        raise HTTPException(status_code=400, detail="Kode OTP salah.")
+
+    update_firebase_auth_password(email_key, req.new_password)
+
     # Update password pada store jika ada
     if email_key in DB_DOSEN_TEMP:
         DB_DOSEN_TEMP[email_key]["password"] = req.new_password
-        
+
     # Hapus OTP yang sudah dipakai
     DB_OTP_STORE.pop(email_key, None)
     

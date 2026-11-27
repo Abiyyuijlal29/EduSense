@@ -58,20 +58,6 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('[AuthService] registerDosen error: $e');
-
-      // Placeholder Fallback Simulasi jika backend sedang offline saat testing UI
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('Connection refused') ||
-          e.toString().contains('timeout')) {
-        // Logika offline development / mock test
-        await Future.delayed(const Duration(milliseconds: 1200));
-        return {
-          'success': true,
-          'message':
-              'Registrasi berhasil (Mode Simulasi Server Offline). Kode OTP simulasi: 123456.',
-          'simulated': true,
-        };
-      }
       rethrow;
     }
   }
@@ -113,23 +99,6 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('[AuthService] verifyEmailOtp error: $e');
-
-      // Placeholder Fallback Simulasi jika backend offline
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('Connection refused') ||
-          e.toString().contains('timeout')) {
-        await Future.delayed(const Duration(milliseconds: 1000));
-        if (otp.trim() == '123456') {
-          return {
-            'success': true,
-            'message': 'Verifikasi berhasil (Mode Simulasi OTP 123456).',
-            'simulated': true,
-          };
-        } else {
-          throw Exception(
-              'Kode OTP salah atau sudah kedaluwarsa. (Gunakan 123456 untuk simulasi offline)');
-        }
-      }
       rethrow;
     }
   }
@@ -167,18 +136,6 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('[AuthService] resendEmailOtp error: $e');
-
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('Connection refused') ||
-          e.toString().contains('timeout')) {
-        await Future.delayed(const Duration(milliseconds: 900));
-        return {
-          'success': true,
-          'message':
-              'Kode OTP baru berhasil dikirim ulang (Simulasi Offline: 123456).',
-          'simulated': true,
-        };
-      }
       rethrow;
     }
   }
@@ -218,18 +175,6 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('[AuthService] requestPasswordResetOtp error: $e');
-
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('Connection refused') ||
-          e.toString().contains('timeout')) {
-        await Future.delayed(const Duration(milliseconds: 1000));
-        return {
-          'success': true,
-          'message':
-              'Kode OTP pemulihan telah dikirim (Simulasi Offline: 123456).',
-          'simulated': true,
-        };
-      }
       rethrow;
     }
   }
@@ -270,23 +215,6 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('[AuthService] verifyPasswordResetOtp error: $e');
-
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('Connection refused') ||
-          e.toString().contains('timeout')) {
-        await Future.delayed(const Duration(milliseconds: 1000));
-        if (otp.trim() == '123456') {
-          return {
-            'success': true,
-            'message': 'Kode OTP valid (Mode Simulasi Offline).',
-            'reset_token': 'simulated_reset_token_123',
-            'simulated': true,
-          };
-        } else {
-          throw Exception(
-              'Kode OTP salah atau telah kedaluwarsa. (Gunakan 123456 untuk simulasi offline)');
-        }
-      }
       rethrow;
     }
   }
@@ -330,18 +258,6 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('[AuthService] resetPassword error: $e');
-
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('Connection refused') ||
-          e.toString().contains('timeout')) {
-        await Future.delayed(const Duration(milliseconds: 1200));
-        return {
-          'success': true,
-          'message':
-              'Kata sandi berhasil diperbarui (Mode Simulasi Server Offline).',
-          'simulated': true,
-        };
-      }
       rethrow;
     }
   }

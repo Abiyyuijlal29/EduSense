@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/firebase_service.dart';
 import '../widgets/otp_input_widget.dart';
 import '../widgets/countdown_resend_widget.dart';
 import 'login_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
-  final String? nip;
-  final String? nama;
+  final String nip;
+  final String nama;
+  final String password;
 
   const EmailVerificationScreen({
     super.key,
     required this.email,
-    this.nip,
-    this.nama,
+    required this.nip,
+    required this.nama,
+    required this.password,
   });
 
   @override
@@ -48,6 +51,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       final res = await AuthService().verifyEmailOtp(
         email: widget.email,
         otp: code,
+      );
+
+      await FirebaseService().registerDosenAccount(
+        nama: widget.nama,
+        nip: widget.nip,
+        email: widget.email,
+        password: widget.password,
       );
 
       if (!mounted) return;
