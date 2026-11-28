@@ -199,6 +199,14 @@ class CameraManager:
         fail_count = 0
         last_inference_error = None
 
+        # === FILTER TEMPORAL: head_down harus konsisten ≥ N detik sebelum dihitung sebagai "tertidur" ===
+        # Mencegah false positive dari aktivitas singkat: jongkok ambil bolpen, menulis, dsb.
+        TIDUR_THRESHOLD_DETIK = 3.0   # durasi minimum head_down sebelum dianggap benar-benar tidur
+        RESET_THRESHOLD_DETIK = 2.0   # jika tidak terdeteksi selama ini, reset hitungan
+        _tidur_mulai: dict = {}        # {slot_posisi: timestamp pertama kali head_down}
+        _tidur_terakhir: dict = {}     # {slot_posisi: timestamp terakhir terdeteksi}
+        _confirmed_tidur: set = set() # slot yang sudah melewati threshold → dianggap tidur
+
         while self.is_running:
             if not self.is_simulation and self.cap and self.cap.isOpened():
                 ret, frame = self.cap.read()
@@ -255,15 +263,50 @@ class CameraManager:
                                 x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].tolist()]
 
                                 if label_nama == "head_down":
-                                    c_tidur += 1
-                                    color = (0, 0, 255)
-                                    label_display = f"Tertidur ({conf:.2f})"
+                                    # === FILTER TEMPORAL ===
+                                    # Gunakan grid posisi kasar (kolom x baris 3x2) sebagai "slot"
+                                    slot = (x1 // 220, y1 // 160)
+                                    now_ts = time.time()
+
+                                    if slot not in _tidur_mulai:
+                                        # Pertama kali terdeteksi di slot ini
+                                        _tidur_mulai[slot] = now_ts
+                                        _tidur_terakhir[slot] = now_ts
+                                    else:
+                                        # Cek apakah ada jeda terlalu lama (reset)
+                                        if now_ts - _tidur_terakhir[slot] > RESET_THRESHOLD_DETIK:
+                                            _tidur_mulai[slot] = now_ts
+                                            _confirmed_tidur.discard(slot)
+                                        _tidur_terakhir[slot] = now_ts
+
+                                    durasi = now_ts - _tidur_mulai[slot]
+                                    if durasi >= TIDUR_THRESHOLD_DETIK:
+                                        _confirmed_tidur.add(slot)
+
+                                    if slot in _confirmed_tidur:
+                                        c_tidur += 1
+                                        color = (0, 0, 255)
+                                        label_display = f"Tertidur ({conf:.2f}) [{durasi:.0f}s]"
+                                    else:
+                                        # Belum konfirmasi → tampilkan sebagai "mencurigakan"
+                                        color = (0, 140, 255)
+                                        label_display = f"Mencurigakan ({conf:.2f}) [{durasi:.0f}s]"
                                 else:
+                                    # head_down hilang di slot ini → reset jika sudah lama tidak terlihat
+                                    # (dilakukan secara pasif di pengecekan _tidur_terakhir di atas)
                                     c_wajah += 1
                                     color = (0, 255, 0)
                                     label_display = f"Memperhatikan ({conf:.2f})"
 
                                 current_boxes.append((x1, y1, x2, y2, color, label_display))
+
+                        # Bersihkan slot head_down yang sudah lama tidak terdeteksi
+                        now_ts = time.time()
+                        stale_slots = [s for s, t in _tidur_terakhir.items() if now_ts - t > RESET_THRESHOLD_DETIK]
+                        for s in stale_slots:
+                            _tidur_mulai.pop(s, None)
+                            _tidur_terakhir.pop(s, None)
+                            _confirmed_tidur.discard(s)
 
                         if c_wajah > 0 or c_tidur > 0:
                             det_name = nama_model_aktif

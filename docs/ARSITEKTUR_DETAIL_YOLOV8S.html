@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagram Arsitektur YOLOv8s - EduSense (best.pt)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 24px;
+    }
+    .canvas {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      border-radius: 16px;
+      padding: 24px 28px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+    }
+    .header h1 { font-size: 26px; color: #0284c7; }
+    .header .meta { font-size: 13px; color: #475569; text-align: right; }
+    .tag {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 12px;
+      margin-left: 4px;
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+    }
+    .panel {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .panel-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #0369a1;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 6px;
+    }
+    .col-stack { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .arrow { font-size: 11px; color: #475569; font-family: 'Consolas', monospace; padding: 2px 0; text-align: center; }
+    .block {
+      width: 100%;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid rgba(15, 23, 42, 0.15);
+      font-weight: 600;
+    }
+    .idx {
+      background: rgba(255,255,255,0.65);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .conv { background: #7dd3fc; color: #0c4a6e; }
+    .c2f { background: #fde68a; color: #78350f; }
+    .sppf { background: #60a5fa; color: #1e3a8a; }
+    .upsample { background: #86efac; color: #14532d; }
+    .concat { background: #fbbf24; color: #78350f; }
+    .detect { background: linear-gradient(90deg, #86efac, #fde68a); color: #14532d; border: 1.5px solid #22c55e; }
+    .sub-txt { font-size: 11px; font-weight: 400; opacity: 0.9; display: block; }
+
+    .right-col { display: flex; flex-direction: column; gap: 18px; }
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .detail-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 12px;
+    }
+    .detail-card h4 { font-size: 13px; margin-bottom: 6px; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+    .detail-card ul { padding-left: 16px; color: #334155; line-height: 1.5; }
+    .head-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+    th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: center; }
+    th { background: #e2e8f0; color: #0f172a; }
+    .highlight-row { background: #fef08a; font-weight: 700; }
+    .code-ref {
+      margin-top: 16px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .code-ref code { color: #38bdf8; font-family: 'Consolas', monospace; }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .canvas { box-shadow: none; border: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="header">
+      <div>
+        <h1>YOLOv8s Architecture &mdash; EduSense (<code>backend/models/best.pt</code>)</h1>
+        <p style="font-size:13.5px; color:#475569; margin-top:4px;">
+          Diagram Lapisan Aktual Model Deteksi Perilaku Siswa (<code>0: wajah</code>, <code>1: head_down</code>)
+        </p>
+      </div>
+      <div class="meta">
+        <div><strong>129 Layers</strong> &bull; <strong>11,136,374 Params</strong> &bull; <strong>28.6 GFLOPs</strong></div>
+        <div style="margin-top:4px;">
+          Scale <strong>s</strong>: <span class="tag">d = 0.33</span> <span class="tag">w = 0.50</span> <span class="tag">r = 2.0</span> <span class="tag">nc = 2</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- BACKBONE -->
+      <div class="panel">
+        <div class="panel-title">1. Backbone (CSPDarknet)</div>
+        <div class="col-stack">
+          <div class="arrow">Input: 640&times;640&times;3 (Train) / 320&times;320&times;3 (Live)</div>
+          <div class="block conv"><div>Conv (P1) <span class="sub-txt">k=3, s=2, p=1</span></div><span class="idx">0</span></div>
+          <div class="arrow">&darr; 320&times;320&times;32 (928 params)</div>
+          <div class="block conv"><div>Conv (P2) <span class="sub-txt">k=3, s=2, p=1</span></div><span class="idx">1</span></div>
+          <div class="arrow">&darr; 160&times;160&times;64 (18,560 params)</div>
+          <div class="block c2f"><div>C2f <span class="sub-txt">shortcut=True, n=1 (3&times;0.33)</span></div><span class="idx">2</span></div>
+          <div class="arrow">&darr; 160&times;160&times;64 (29,056 params)</div>
+          <div class="block conv"><div>Conv (P3) <span class="sub-txt">k=3, s=2, p=1</span></div><span class="idx">3</span></div>
+          <div class="arrow">&darr; 80&times;80&times;128 (73,984 params)</div>
+          <div class="block c2f"><div>C2f <span class="sub-txt">shortcut=True, n=2 (6&times;0.33)</span></div><span class="idx">4</span></div>
+          <div class="arrow">&darr; 80&times;80&times;128 (Stride 8) &rarr; ke Layer 14</div>
+          <div class="block conv"><div>Conv (P4) <span class="sub-txt">k=3, s=2, p=1</span></div><span class="idx">5</span></div>
+          <div class="arrow">&darr; 40&times;40&times;256 (295,424 params)</div>
+          <div class="block c2f"><div>C2f <span class="sub-txt">shortcut=True, n=2 (6&times;0.33)</span></div><span class="idx">6</span></div>
+          <div class="arrow">&darr; 40&times;40&times;256 (Stride 16) &rarr; ke Layer 11</div>
+          <div class="block conv"><div>Conv (P5) <span class="sub-txt">k=3, s=2, p=1</span></div><span class="idx">7</span></div>
+          <div class="arrow">&darr; 20&times;20&times;512 (1,180,672 params)</div>
+          <div class="block c2f"><div>C2f <span class="sub-txt">shortcut=True, n=1 (3&times;0.33)</span></div><span class="idx">8</span></div>
+          <div class="arrow">&darr; 20&times;20&times;512 (1,838,080 params)</div>
+          <div class="block sppf"><div>SPPF <span class="sub-txt">k=5 (MaxPool2d 3&times;)</span></div><span class="idx">9</span></div>
+          <div class="arrow">&darr; 20&times;20&times;512 (Stride 32) &rarr; ke Layer 10 &amp; 20</div>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE: DETAILS + NECK/HEAD -->
+      <div class="right-col">
+        <!-- DETAILS BLOCKS -->
+        <div class="panel">
+          <div class="panel-title">2. Detail Modul Internal &amp; Tabel Skala Model</div>
+          <div class="details-grid">
+            <div class="detail-card" style="background:#e0f2fe;">
+              <h4>Conv Module</h4>
+              <ul>
+                <li><code>Conv2d(k, s, p)</code></li>
+                <li><code>BatchNorm2d</code></li>
+                <li><code>SiLU()</code> Aktivasi</li>
+              </ul>
+            </div>
+            <div class="detail-card" style="background:#fef9c3;">
+              <h4>C2f &amp; Bottleneck</h4>
+              <ul>
+                <li><code>Conv(1&times;1)</code> &rarr; <code>Split</code></li>
+                <li><code>n &times; Bottleneck</code></li>
+                <li><code>Concat</code> &rarr; <code>Conv(1&times;1)</code></li>
+              </ul>
+            </div>
+            <div class="detail-card" style="background:#dbeafe;">
+              <h4>SPPF</h4>
+              <ul>
+                <li><code>Conv(1&times;1)</code></li>
+                <li>3&times; <code>MaxPool2d(k=5)</code></li>
+                <li><code>Concat</code> &rarr; <code>Conv(1&times;1)</code></li>
+              </ul>
+            </div>
+            <div class="detail-card" style="background:#dcfce7;">
+              <h4>Detect &amp; Loss (nc=2)</h4>
+              <ul>
+                <li>Anchor-Free + TAL</li>
+                <li>Bbox: <code>CIoU + DFL</code></li>
+                <li>Cls: <code>BCE Loss</code> (2 kelas)</li>
+              </ul>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Varian Model</th>
+                <th>depth_multiple (d)</th>
+                <th>width_multiple (w)</th>
+                <th>max_channels ratio (r)</th>
+                <th>Status di Proyek EduSense</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>yolov8n</td><td>0.33</td><td>0.25</td><td>2.0</td><td>Fallback ringan (api_server.py:108)</td></tr>
+              <tr class="highlight-row"><td>yolov8s</td><td>0.33</td><td>0.50</td><td>2.0</td><td>✅ MODEL UTAMA (backend/models/best.pt)</td></tr>
+              <tr><td>yolov8m</td><td>0.67</td><td>0.75</td><td>1.5</td><td>Tidak dipakai</td></tr>
+              <tr><td>yolov8l</td><td>1.00</td><td>1.00</td><td>1.0</td><td>Tidak dipakai</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- NECK & HEAD -->
+        <div class="panel">
+          <div class="panel-title">3. Neck (PANet) &amp; Detection Head (Layers 10 &ndash; 22)</div>
+          <div class="head-grid">
+            <!-- Top-Down Path -->
+            <div class="col-stack">
+              <div class="arrow" style="font-weight:700;">Alur Top-Down (Dari Layer 9 SPPF)</div>
+              <div class="block upsample"><div>Upsample <span class="sub-txt">nearest, scale=2</span></div><span class="idx">10</span></div>
+              <div class="arrow">&darr; 40&times;40&times;512</div>
+              <div class="block concat"><div>Concat <span class="sub-txt">Gabung [10] + Layer [6]</span></div><span class="idx">11</span></div>
+              <div class="arrow">&darr; 40&times;40&times;768</div>
+              <div class="block c2f"><div>C2f <span class="sub-txt">shortcut=False, n=1</span></div><span class="idx">12</span></div>
+              <div class="arrow">&darr; 40&times;40&times;256 (&rarr; ke Layer 17)</div>
+              <div class="block upsample"><div>Upsample <span class="sub-txt">nearest, scale=2</span></div><span class="idx">13</span></div>
+              <div class="arrow">&darr; 80&times;80&times;256</div>
+              <div class="block concat"><div>Concat <span class="sub-txt">Gabung [13] + Layer [4]</span></div><span class="idx">14</span></div>
+              <div class="arrow">&darr; 80&times;80&times;384</div>
+              <div class="block c2f"><div>C2f (Output P3) <span class="sub-txt">shortcut=False, n=1</span></div><span class="idx">15</span></div>
+              <div class="arrow">&darr; 80&times;80&times;128 &rarr; <strong>Detect P3 (Objek Kecil)</strong></div>
+            </div>
+
+            <!-- Bottom-Up Path + Detect -->
+            <div class="col-stack">
+              <div class="arrow" style="font-weight:700;">Alur Bottom-Up (Dari Layer 15)</div>
+              <div class="block conv"><div>Conv <span class="sub-txt">k=3, s=2, p=1</span></div><span class="idx">16</span></div>
+              <div class="arrow">&darr; 40&times;40&times;128</div>
+              <div class="block concat"><div>Concat <span class="sub-txt">Gabung [16] + Layer [12]</span></div><span class="idx">17</span></div>
+              <div class="arrow">&darr; 40&times;40&times;384</div>
+              <div class="block c2f"><div>C2f (Output P4) <span class="sub-txt">shortcut=False, n=1</span></div><span class="idx">18</span></div>
+              <div class="arrow">&darr; 40&times;40&times;256 &rarr; <strong>Detect P4 (Objek Sedang)</strong></div>
+              <div class="block conv"><div>Conv <span class="sub-txt">k=3, s=2, p=1</span></div><span class="idx">19</span></div>
+              <div class="arrow">&darr; 20&times;20&times;256</div>
+              <div class="block concat"><div>Concat <span class="sub-txt">Gabung [19] + Layer [9]</span></div><span class="idx">20</span></div>
+              <div class="arrow">&darr; 20&times;20&times;768</div>
+              <div class="block c2f"><div>C2f (Output P5) <span class="sub-txt">shortcut=False, n=1</span></div><span class="idx">21</span></div>
+              <div class="arrow">&darr; 20&times;20&times;512 &rarr; <strong>Detect P5 (Objek Besar)</strong></div>
+              <div class="block detect" style="margin-top:6px;">
+                <div>Detect Head [15, 18, 21] <span class="sub-txt">Output Tensor: (6, 8400) &rarr; 4 BBox + 2 Kelas</span></div>
+                <span class="idx">22</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-ref">
+      <strong>📍 Referensi Letak Kode di Proyek EduSense:</strong><br>
+      &bull; Definisi Kelas (<code>nc: 2</code>): <code>dataset/dataset.yaml</code> (Baris 11&ndash;18) &nbsp;|&nbsp;
+      &bull; Inisialisasi <code>yolov8s.pt</code> &amp; Training: <code>training/train_yolo.py</code> (Baris 48 &amp; 55)<br>
+      &bull; File Bobot Arsitektur (129 Layer): <code>backend/models/best.pt</code> &nbsp;|&nbsp;
+      &bull; Inferensi Server API: <code>backend/api_server.py</code> (Baris 87, 103, 257, 389)
+    </div>
+  </div>
+</body>
+</html>
