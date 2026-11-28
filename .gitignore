@@ -58,3 +58,6 @@ edusense_mobile/build/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 8. Kredensial layanan backend
+backend/.env

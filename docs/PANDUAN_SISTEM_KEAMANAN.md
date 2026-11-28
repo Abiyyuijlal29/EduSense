@@ -40,8 +40,10 @@ Firebase Realtime Database menerapkan aturan keamanan sisi server Google. Setiap
 2. Pilih proyek EduSense Anda.
 3. Di panel kiri, klik **Build** -> **Realtime Database**.
 4. Klik tab **Rules**.
-5. Salin isi file `backend/firebase_rules.json` dan tempel di editor tersebut.
+5. Salin isi file `firebase_rules.json` di root proyek dan tempel di editor tersebut.
 6. Klik tombol **Publish**.
+7. Node `/dosen/{NIP}` mengizinkan akun Firebase Auth membuat atau mengubah profilnya sendiri berdasarkan `uid`; pastikan rules terbaru sudah dipublikasikan.
+8. Setelah OTP pendaftaran valid, aplikasi membuat akun Firebase Authentication dan menyimpan profil ke `/dosen/{NIP}`. Password hanya disimpan Firebase Authentication, bukan di Realtime Database.
 
 ---
 
@@ -81,6 +83,46 @@ FastAPI memanfaatkan Pydantic v2 untuk memvalidasi setiap data JSON yang masuk s
    - `kecepatan_kipas` dibatasi hanya angka `0`, `1`, `2`, atau `3` (`ge=0, le=3`). Nilai di luar batas otomatis ditolak dengan `HTTP 422 Unprocessable Entity`.
 3. **Pencegahan Directory Traversal (`DeteksiRequest`)**:
    - Memeriksa `path_gambar` agar tidak mengandung karakter traversal `..` atau absolute drive path (misal `C:\Windows`) untuk melindungi file sistem server.
+
+---
+
+## 4. 📧 Pengiriman OTP Email
+
+OTP pendaftaran, kirim ulang, dan pemulihan kata sandi dikirim oleh backend melalui SMTP.
+Agar tidak perlu mengatur PowerShell setiap menjalankan server, lakukan sekali:
+
+1. Masuk ke folder `backend` dan jalankan `python -m pip install -r requirements.txt` (cukup sekali).
+2. Salin `backend/.env.example` menjadi `backend/.env` (cukup sekali).
+3. Isi `SMTP_USERNAME` dengan Gmail pengirim dan `SMTP_PASSWORD` dengan App Password Gmail.
+4. Jalankan backend seperti biasa. Backend membaca `.env` otomatis saat mulai.
+
+Jika konfigurasi tidak ada atau pengiriman gagal, API mengembalikan error dan
+tidak menyatakan OTP berhasil dikirim. OTP acak berlaku selama 5 menit.
+
+Contoh variabel yang diisi pada `backend/.env`:
+
+```dotenv
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=pengirim@gmail.com
+SMTP_PASSWORD=app-password-16-karakter
+SMTP_FROM_EMAIL=pengirim@gmail.com
+SMTP_USE_SSL=false
+```
+
+Jangan commit file `backend/.env` atau membagikan App Password. Pengaturan
+pengirim ini cukup sekali; setiap pengguna yang mendaftar menerima OTP ke email
+masing-masing tanpa perlu mengatur apa pun di akunnya.
+
+Untuk memperbarui password Firebase Authentication setelah OTP lupa-password
+valid, backend juga memerlukan Firebase Admin SDK. Pasang dependency backend
+dari `requirements.txt` dan atur `GOOGLE_APPLICATION_CREDENTIALS` ke file
+service account Firebase yang memiliki izin mengelola Authentication. Jangan
+commit file service account ke repository. Jika kredensial tidak tersedia,
+API menolak reset dan tidak memberi respons sukses palsu.
+
+Lokasi service account juga dapat ditambahkan sebagai `GOOGLE_APPLICATION_CREDENTIALS`
+di `backend/.env`; jangan salin file service account ke repository.
 
 ---
 

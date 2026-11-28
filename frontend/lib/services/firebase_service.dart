@@ -105,6 +105,52 @@ class FirebaseService {
     }
   }
 
+  Future<void> registerDosenAccount({
+    required String nama,
+    required String nip,
+    required String email,
+    required String password,
+  }) async {
+    final emailClean = email.trim().toLowerCase();
+    final auth = FirebaseAuth.instance;
+    UserCredential credential;
+
+    try {
+      credential = await auth.createUserWithEmailAndPassword(
+        email: emailClean,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'email-already-in-use') rethrow;
+      credential = await auth.signInWithEmailAndPassword(
+        email: emailClean,
+        password: password,
+      );
+    }
+
+    final user = credential.user;
+    if (user == null) {
+      throw StateError(
+        'Akun Firebase berhasil dibuat tetapi pengguna tidak ditemukan.',
+      );
+    }
+
+    try {
+      await _db.ref('dosen/$nip').set({
+        'uid': user.uid,
+        'nip': nip,
+        'nama': nama.trim(),
+        'email': emailClean,
+        'program_studi': 'Teknik Informatika',
+        'mata_kuliah': 'Vision AI dan IoT Smart Classroom',
+        'kelas_aktif': 'TI-2F (Ruang Lab 3)',
+      }).timeout(_timeout);
+    } catch (e) {
+      debugPrint('Firebase simpan profil dosen gagal: $e');
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -119,7 +165,7 @@ class FirebaseService {
       final snap = await _db
           .ref('dosen')
           .orderByChild('email')
-          .equalTo(email)
+          .equalTo(email.trim().toLowerCase())
           .limitToFirst(1)
           .get()
           .timeout(_timeout);

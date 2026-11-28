@@ -1,0 +1,329 @@
+
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Arsitektur YOLOv8 EduSense</title>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    background: #ffffff;
+    color: #222222;
+    padding: 25px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background: #1e40af;
+    color: white;
+    padding: 12px;
+    border: 1px solid #cccccc;
+}
+
+td {
+    padding: 10px;
+    border: 1px solid #cccccc;
+    text-align: center;
+}
+
+.section td {
+    background: #dbeafe;
+    color: #1e3a8a;
+    font-weight: bold;
+    text-align: left;
+    font-size: 16px;
+}
+
+tr:nth-child(even):not(.section) {
+    background: #f8fafc;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>ARSITEKTUR YOLOv8 SISTEM EDUSENSE</h1>
+
+<table>
+
+<thead>
+<tr>
+    <th>Layer</th>
+    <th>From</th>
+    <th>Module</th>
+    <th>Repeats</th>
+    <th>Parameters</th>
+    <th>Arguments</th>
+    <th>Bagian Arsitektur</th>
+</tr>
+</thead>
+
+<tbody>
+
+
+        <tr class="section">
+            <td colspan="7">BACKBONE</td>
+        </tr>
+        
+    <tr>
+        <td>0</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.conv.Conv</td>
+        <td>1</td>
+        <td>928</td>
+        <td>[64, 3, 2]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>1</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.conv.Conv</td>
+        <td>1</td>
+        <td>18,560</td>
+        <td>[128, 3, 2]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>2</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.C2f</td>
+        <td>3</td>
+        <td>29,056</td>
+        <td>[128, True]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>3</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.conv.Conv</td>
+        <td>1</td>
+        <td>73,984</td>
+        <td>[256, 3, 2]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>4</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.C2f</td>
+        <td>6</td>
+        <td>197,632</td>
+        <td>[256, True]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>5</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.conv.Conv</td>
+        <td>1</td>
+        <td>295,424</td>
+        <td>[512, 3, 2]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>6</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.C2f</td>
+        <td>6</td>
+        <td>788,480</td>
+        <td>[512, True]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>7</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.conv.Conv</td>
+        <td>1</td>
+        <td>1,180,672</td>
+        <td>[1024, 3, 2]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>8</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.C2f</td>
+        <td>3</td>
+        <td>1,838,080</td>
+        <td>[1024, True]</td>
+        <td>Backbone</td>
+    </tr>
+    
+    <tr>
+        <td>9</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.SPPF</td>
+        <td>1</td>
+        <td>656,896</td>
+        <td>[1024, 5]</td>
+        <td>Backbone</td>
+    </tr>
+    
+        <tr class="section">
+            <td colspan="7">NECK</td>
+        </tr>
+        
+    <tr>
+        <td>10</td>
+        <td>-1</td>
+        <td>torch.nn.modules.upsampling.Upsample</td>
+        <td>1</td>
+        <td>0</td>
+        <td>[&#x27;None&#x27;, 2, &#x27;nearest&#x27;]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>11</td>
+        <td>[-1, 6]</td>
+        <td>ultralytics.nn.modules.conv.Concat</td>
+        <td>1</td>
+        <td>0</td>
+        <td>[1]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>12</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.C2f</td>
+        <td>3</td>
+        <td>591,360</td>
+        <td>[512]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>13</td>
+        <td>-1</td>
+        <td>torch.nn.modules.upsampling.Upsample</td>
+        <td>1</td>
+        <td>0</td>
+        <td>[&#x27;None&#x27;, 2, &#x27;nearest&#x27;]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>14</td>
+        <td>[-1, 4]</td>
+        <td>ultralytics.nn.modules.conv.Concat</td>
+        <td>1</td>
+        <td>0</td>
+        <td>[1]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>15</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.C2f</td>
+        <td>3</td>
+        <td>148,224</td>
+        <td>[256]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>16</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.conv.Conv</td>
+        <td>1</td>
+        <td>147,712</td>
+        <td>[256, 3, 2]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>17</td>
+        <td>[-1, 12]</td>
+        <td>ultralytics.nn.modules.conv.Concat</td>
+        <td>1</td>
+        <td>0</td>
+        <td>[1]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>18</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.C2f</td>
+        <td>3</td>
+        <td>493,056</td>
+        <td>[512]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>19</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.conv.Conv</td>
+        <td>1</td>
+        <td>590,336</td>
+        <td>[512, 3, 2]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>20</td>
+        <td>[-1, 9]</td>
+        <td>ultralytics.nn.modules.conv.Concat</td>
+        <td>1</td>
+        <td>0</td>
+        <td>[1]</td>
+        <td>Neck</td>
+    </tr>
+    
+    <tr>
+        <td>21</td>
+        <td>-1</td>
+        <td>ultralytics.nn.modules.block.C2f</td>
+        <td>3</td>
+        <td>1,969,152</td>
+        <td>[1024]</td>
+        <td>Neck</td>
+    </tr>
+    
+        <tr class="section">
+            <td colspan="7">HEAD</td>
+        </tr>
+        
+    <tr>
+        <td>22</td>
+        <td>[15, 18, 21]</td>
+        <td>ultralytics.nn.modules.head.Detect</td>
+        <td>1</td>
+        <td>2,116,822</td>
+        <td>[&#x27;nc&#x27;]</td>
+        <td>Head</td>
+    </tr>
+    
+
+</tbody>
+
+</table>
+
+</body>
+
+</html>

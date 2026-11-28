@@ -62,27 +62,31 @@ class ApiService {
     // [FIREBASE] sumber utama: login memakai email yang diketik
     if (input.contains('@')) {
       final berhasil = await FirebaseService().signIn(input, password);
-      if (berhasil) {
-        final profil = await FirebaseService().getDosen(input);
-        if (profil != null) {
-          currentUser = profil;
-          // Ambil juga JWT token dari server FastAPI jika online
-          try {
-            final apiRes = await http.post(
-              Uri.parse('$baseUrl/api/auth/login'),
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({'username_atau_email': input, 'password': password}),
-            ).timeout(const Duration(seconds: 4));
-            if (apiRes.statusCode == 200) {
-              final d = jsonDecode(apiRes.body);
-              authToken = d['access_token'];
-            }
-          } catch (_) {}
-          return profil;
-        }
-        throw Exception(
-            'Akun berhasil login, tetapi profil dosen dengan email ini belum ada di Firebase (node dosen).');
+      if (!berhasil) {
+        throw Exception('Email atau kata sandi Firebase salah.');
       }
+
+      final profil = await FirebaseService().getDosen(input);
+      if (profil == null) {
+        throw Exception(
+          'Akun Firebase berhasil login, tetapi profil dosen tidak ditemukan di Realtime Database.',
+        );
+      }
+
+      currentUser = profil;
+      // Ambil juga JWT token dari server FastAPI jika online
+      try {
+        final apiRes = await http.post(
+          Uri.parse('$baseUrl/api/auth/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'username_atau_email': input, 'password': password}),
+        ).timeout(const Duration(seconds: 4));
+        if (apiRes.statusCode == 200) {
+          final d = jsonDecode(apiRes.body);
+          authToken = d['access_token'];
+        }
+      } catch (_) {}
+      return profil;
     }
 
     // Cadangan: server FastAPI

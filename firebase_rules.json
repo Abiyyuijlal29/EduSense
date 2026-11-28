@@ -9,6 +9,9 @@
       ".read": "auth != null",
       "/* Data dosen hanya boleh diubah oleh admin / service account server */": "",
       ".write": "auth != null && auth.token.admin === true",
+      "$nip": {
+        ".write": "auth != null && newData.child('uid').val() === auth.uid && (!data.exists() || data.child('uid').val() === auth.uid)"
+      },
       "/* Index agar pencarian profil dosen berdasarkan email cepat */": "",
       ".indexOn": ["email"]
     },
